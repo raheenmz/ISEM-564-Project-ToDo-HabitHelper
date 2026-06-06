@@ -6,7 +6,10 @@ export const tasksTable = pgTable("tasks", {
   id: serial("task_id").primaryKey(),
   userId: integer("user_id").notNull().references(() => usersTable.id),
   assignedUserId: integer("assigned_user_id").references(() => usersTable.id),
-  classificationId: integer("classification_id").references(() => classificationsTable.id),
+  classificationId: integer("classification_id").references(
+    () => classificationsTable.id,
+    { onDelete: "set null" },
+  ),
   groupId: integer("group_id"),
   habitId: integer("habit_id"),
   title: text("title").notNull(),

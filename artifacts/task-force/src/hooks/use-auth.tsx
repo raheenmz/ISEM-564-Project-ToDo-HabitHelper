@@ -21,7 +21,9 @@ const AuthContext = createContext<AuthContextType>({
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const qc = useQueryClient();
-  const { data: user, isLoading, error } = useGetMe({ query: { retry: false } });
+  const { data: user, isLoading, error } = useGetMe({
+    query: { queryKey: getGetMeQueryKey(), retry: false },
+  });
 
   const logoutMutation = useLogout({
     mutation: {
@@ -33,7 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   function logout() {
-    logoutMutation.mutate({});
+    logoutMutation.mutate();
   }
 
   return (
