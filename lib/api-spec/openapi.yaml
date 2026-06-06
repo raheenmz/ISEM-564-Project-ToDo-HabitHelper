@@ -3,13 +3,22 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Task Force API specification
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication operations
+  - name: tasks
+    description: Task management
+  - name: classifications
+    description: Task classifications
+  - name: dashboard
+    description: Dashboard data
+
 paths:
   /healthz:
     get:
@@ -24,6 +33,209 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Invalid credentials
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout
+      responses:
+        "200":
+          description: Logged out successfully
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user
+      responses:
+        "200":
+          description: Current authenticated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Not authenticated
+
+  /tasks:
+    get:
+      operationId: getTasks
+      tags: [tasks]
+      summary: List all tasks for current user
+      responses:
+        "200":
+          description: List of tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Task"
+    post:
+      operationId: createTask
+      tags: [tasks]
+      summary: Create a new task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskInput"
+      responses:
+        "201":
+          description: Task created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+
+  /tasks/{id}:
+    get:
+      operationId: getTask
+      tags: [tasks]
+      summary: Get a task by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Task found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "404":
+          description: Task not found
+    put:
+      operationId: updateTask
+      tags: [tasks]
+      summary: Update a task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskUpdate"
+      responses:
+        "200":
+          description: Task updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "404":
+          description: Task not found
+    delete:
+      operationId: deleteTask
+      tags: [tasks]
+      summary: Delete a task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Task deleted
+        "404":
+          description: Task not found
+
+  /classifications:
+    get:
+      operationId: getClassifications
+      tags: [classifications]
+      summary: List all classifications for current user
+      responses:
+        "200":
+          description: List of classifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Classification"
+    post:
+      operationId: createClassification
+      tags: [classifications]
+      summary: Create a custom classification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClassificationInput"
+      responses:
+        "201":
+          description: Classification created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Classification"
+
+  /classifications/{id}:
+    delete:
+      operationId: deleteClassification
+      tags: [classifications]
+      summary: Delete a custom classification
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Classification deleted
+        "403":
+          description: Cannot delete default classification
+        "404":
+          description: Classification not found
+
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get dashboard summary counts
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +246,161 @@ components:
       required:
         - status
 
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+      required:
+        - id
+        - name
+        - email
+
+    LoginInput:
+      type: object
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+      required:
+        - username
+        - password
+
+    Task:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        classificationId:
+          type: ["integer", "null"]
+        classificationName:
+          type: ["string", "null"]
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        priority:
+          type: string
+          enum: [LOW, MEDIUM, HIGH]
+        status:
+          type: string
+          enum: [TODO, IN_PROGRESS, DONE]
+        deadline:
+          type: ["string", "null"]
+        isOverdue:
+          type: boolean
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - userId
+        - title
+        - priority
+        - status
+        - isOverdue
+        - createdAt
+        - updatedAt
+
+    TaskInput:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        priority:
+          type: string
+          enum: [LOW, MEDIUM, HIGH]
+        status:
+          type: string
+          enum: [TODO, IN_PROGRESS, DONE]
+        deadline:
+          type: string
+        classificationId:
+          type: integer
+      required:
+        - title
+        - priority
+        - status
+
+    TaskUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        priority:
+          type: string
+          enum: [LOW, MEDIUM, HIGH]
+        status:
+          type: string
+          enum: [TODO, IN_PROGRESS, DONE]
+        deadline:
+          type: string
+        classificationId:
+          type: ["integer", "null"]
+
+    Classification:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        name:
+          type: string
+        type:
+          type: string
+          enum: [DEFAULT, CUSTOM]
+        createdAt:
+          type: string
+      required:
+        - id
+        - userId
+        - name
+        - type
+        - createdAt
+
+    ClassificationInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+      required:
+        - name
+
+    DashboardSummary:
+      type: object
+      properties:
+        totalTasks:
+          type: integer
+        todoCount:
+          type: integer
+        inProgressCount:
+          type: integer
+        doneCount:
+          type: integer
+        overdueCount:
+          type: integer
+        todayCount:
+          type: integer
+      required:
+        - totalTasks
+        - todoCount
+        - inProgressCount
+        - doneCount
+        - overdueCount
+        - todayCount

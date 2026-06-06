@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Task Force"
+version = "1.0.0"
+id = "artifacts/task-force"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24371
+
+[services.development]
+run = "pnpm --filter @workspace/task-force run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/task-force", "run", "build" ]
+publicDir = "artifacts/task-force/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24371"
+BASE_PATH = "/"
