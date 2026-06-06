@@ -42,6 +42,22 @@ function taskWithOverdue(task: {
   };
 }
 
+async function verifyClassificationOwnership(
+  classificationId: number,
+  userId: number,
+): Promise<boolean> {
+  const [row] = await db
+    .select({ id: classificationsTable.id })
+    .from(classificationsTable)
+    .where(
+      and(
+        eq(classificationsTable.id, classificationId),
+        eq(classificationsTable.userId, userId),
+      ),
+    );
+  return !!row;
+}
+
 router.get("/tasks", requireAuth, async (req, res): Promise<void> => {
   const userId = req.session.userId!;
 
@@ -81,6 +97,14 @@ router.post("/tasks", requireAuth, async (req, res): Promise<void> => {
 
   const { classificationId, ...rest } = parsed.data;
 
+  if (classificationId != null) {
+    const owned = await verifyClassificationOwnership(classificationId, userId);
+    if (!owned) {
+      res.status(403).json({ error: "Classification does not belong to you" });
+      return;
+    }
+  }
+
   const [task] = await db
     .insert(tasksTable)
     .values({ ...rest, userId, classificationId: classificationId ?? null })
@@ -90,12 +114,7 @@ router.post("/tasks", requireAuth, async (req, res): Promise<void> => {
     ? await db
         .select({ name: classificationsTable.name })
         .from(classificationsTable)
-        .where(
-          and(
-            eq(classificationsTable.id, classificationId),
-            eq(classificationsTable.userId, userId),
-          ),
-        )
+        .where(eq(classificationsTable.id, classificationId))
         .then((rows) => rows[0]?.name ?? null)
     : null;
 
@@ -167,6 +186,14 @@ router.put("/tasks/:id", requireAuth, async (req, res): Promise<void> => {
   if (!existing) {
     res.status(404).json({ error: "Task not found" });
     return;
+  }
+
+  if (parsed.data.classificationId != null) {
+    const owned = await verifyClassificationOwnership(parsed.data.classificationId, userId);
+    if (!owned) {
+      res.status(403).json({ error: "Classification does not belong to you" });
+      return;
+    }
   }
 
   const updateData: Record<string, unknown> = { ...parsed.data };

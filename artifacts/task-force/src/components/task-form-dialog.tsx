@@ -47,6 +47,9 @@ const STATUS_OPTIONS = [
   { value: "DONE", label: "Done" },
 ];
 
+const NO_CATEGORY = "__none__";
+const ADD_CATEGORY = "__new__";
+
 export function TaskFormDialog({ open, onClose, editTask }: TaskFormDialogProps) {
   const qc = useQueryClient();
 
@@ -118,6 +121,18 @@ export function TaskFormDialog({ open, onClose, editTask }: TaskFormDialogProps)
     }
   }, [open, editTask]);
 
+  function handleCategoryChange(v: string) {
+    if (v === ADD_CATEGORY) {
+      setShowNewClassif(true);
+    } else if (v === NO_CATEGORY) {
+      setClassificationId("");
+      setShowNewClassif(false);
+    } else {
+      setClassificationId(v);
+      setShowNewClassif(false);
+    }
+  }
+
   function handleAddClassification() {
     const name = newClassifName.trim();
     if (!name) return;
@@ -149,6 +164,7 @@ export function TaskFormDialog({ open, onClose, editTask }: TaskFormDialogProps)
   }
 
   const isPending = createTask.isPending || updateTask.isPending;
+  const selectValue = classificationId || NO_CATEGORY;
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
@@ -224,28 +240,18 @@ export function TaskFormDialog({ open, onClose, editTask }: TaskFormDialogProps)
 
             <div className="space-y-1.5">
               <Label>Category</Label>
-              <Select
-                value={classificationId}
-                onValueChange={(v) => {
-                  if (v === "__new__") {
-                    setShowNewClassif(true);
-                  } else {
-                    setClassificationId(v);
-                    setShowNewClassif(false);
-                  }
-                }}
-              >
+              <Select value={selectValue} onValueChange={handleCategoryChange}>
                 <SelectTrigger>
-                  <SelectValue placeholder="None" />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value={NO_CATEGORY}>None</SelectItem>
                   {(classifications as Classification[]).map((c) => (
                     <SelectItem key={c.id} value={String(c.id)}>
                       {c.name}
                     </SelectItem>
                   ))}
-                  <SelectItem value="__new__" className="text-primary font-medium">
+                  <SelectItem value={ADD_CATEGORY} className="text-primary font-medium">
                     + Add category…
                   </SelectItem>
                 </SelectContent>
