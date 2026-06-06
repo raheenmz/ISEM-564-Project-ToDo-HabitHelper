@@ -5,6 +5,7 @@ import {
   useUpdateTask,
   useGetClassifications,
   useCreateClassification,
+  useDeleteClassification,
   getGetTasksQueryKey,
   getGetDashboardSummaryQueryKey,
   getGetClassificationsQueryKey,
@@ -64,6 +65,8 @@ export function TaskFormDialog({ open, onClose, editTask }: TaskFormDialogProps)
   const [formError, setFormError] = useState("");
 
   const { data: classifications = [] } = useGetClassifications();
+  const allClassifications = classifications as Classification[];
+  const customClassifications = allClassifications.filter((c) => c.type !== "DEFAULT");
 
   const createTask = useCreateTask({
     mutation: {
@@ -94,6 +97,17 @@ export function TaskFormDialog({ open, onClose, editTask }: TaskFormDialogProps)
         setClassificationId(String(created.id));
         setNewClassifName("");
         setShowNewClassif(false);
+      },
+    },
+  });
+
+  const deleteClassification = useDeleteClassification({
+    mutation: {
+      onSuccess: (_, variables) => {
+        qc.invalidateQueries({ queryKey: getGetClassificationsQueryKey() });
+        if (classificationId === String(variables.id)) {
+          setClassificationId("");
+        }
       },
     },
   });
@@ -137,6 +151,10 @@ export function TaskFormDialog({ open, onClose, editTask }: TaskFormDialogProps)
     const name = newClassifName.trim();
     if (!name) return;
     createClassification.mutate({ data: { name } });
+  }
+
+  function handleDeleteClassification(id: number) {
+    deleteClassification.mutate({ id });
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -246,9 +264,12 @@ export function TaskFormDialog({ open, onClose, editTask }: TaskFormDialogProps)
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={NO_CATEGORY}>None</SelectItem>
-                  {(classifications as Classification[]).map((c) => (
+                  {allClassifications.map((c) => (
                     <SelectItem key={c.id} value={String(c.id)}>
                       {c.name}
+                      {c.type === "DEFAULT" && (
+                        <span className="ml-1 text-xs text-muted-foreground">•</span>
+                      )}
                     </SelectItem>
                   ))}
                   <SelectItem value={ADD_CATEGORY} className="text-primary font-medium">
@@ -280,13 +301,35 @@ export function TaskFormDialog({ open, onClose, editTask }: TaskFormDialogProps)
               >
                 Add
               </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setShowNewClassif(false)}
-              >
+              <Button type="button" variant="ghost" onClick={() => setShowNewClassif(false)}>
                 Cancel
               </Button>
+            </div>
+          )}
+
+          {customClassifications.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium text-muted-foreground">Custom categories</p>
+              <div className="flex flex-wrap gap-1.5">
+                {customClassifications.map((c) => (
+                  <span
+                    key={c.id}
+                    className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border bg-primary/10 text-primary border-primary/20 font-medium"
+                  >
+                    {c.name}
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteClassification(c.id)}
+                      disabled={deleteClassification.isPending}
+                      className="ml-0.5 text-primary/60 hover:text-destructive transition-colors leading-none"
+                      title={`Delete "${c.name}"`}
+                      aria-label={`Delete category ${c.name}`}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
             </div>
           )}
 

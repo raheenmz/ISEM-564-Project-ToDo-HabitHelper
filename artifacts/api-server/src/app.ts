@@ -11,6 +11,12 @@ declare module "express-session" {
   }
 }
 
+const isProd = process.env.NODE_ENV === "production";
+
+const ALLOWED_ORIGINS = process.env.REPLIT_DEV_DOMAIN
+  ? [`https://${process.env.REPLIT_DEV_DOMAIN}`]
+  : ["http://localhost:3000", "http://localhost:5173", "http://localhost:80", "http://localhost"];
+
 const app: Express = express();
 
 app.use(
@@ -35,7 +41,18 @@ app.use(
 
 app.use(
   cors({
-    origin: true,
+    origin: (origin, callback) => {
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+      const allowed = ALLOWED_ORIGINS.some((o) => origin === o || origin.startsWith(o));
+      if (allowed) {
+        callback(null, true);
+      } else {
+        callback(new Error(`CORS: origin "${origin}" not allowed`));
+      }
+    },
     credentials: true,
   }),
 );
@@ -49,8 +66,9 @@ app.use(
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: false,
+      secure: isProd,
       httpOnly: true,
+      sameSite: isProd ? "strict" : "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     },
   }),
