@@ -1,0 +1,169 @@
+Build Task Force: Smart To-Do & Habit Management Web App
+Build a Smart To-Do & Habit Management Web App. This initial version of the app needs to be presented in a class demo, so it should run inside the Replit environment. Eventually, I want to deploy it to Google Cloud Platform.
+The app will be called Task Force with the subtitle: Plan. Collaborate. Achieve.
+Eventual Goal
+This is the bigger picture. Everything is not required in the first iteration.
+The app should eventually allow users to create and manage tasks, organize them by category, collaborate in groups, create recurring habit tasks, and interact with an AI assistant that helps create tasks to achieve goals.
+Recommended Technology
+* React frontend
+* Java backend
+* SQL database
+* The app should run inside Replit
+* Keep the code simple, clean, and easy to explain
+* Include clear setup instructions in the README
+P0 Features
+1. Authentication
+* Provide basic username/password authentication.
+* For the demo, create 3 test users in the system.
+* Each test user’s password should be test123.
+2. Task Management
+Users should be able to:
+* Create tasks
+* View tasks
+* Edit tasks
+* Delete tasks
+* Change task status
+Each task should have:
+* Title
+* Description
+* Priority: LOW, MEDIUM, HIGH
+* Status: TODO, IN_PROGRESS, DONE
+* Deadline
+* Overdue indicator, calculated dynamically
+* Optional classification
+Overdue logic:
+A task is overdue if the deadline is before the current date and the status is not DONE.
+3. Task Classification
+* Default classifications: Work, Personal, School
+* Users can create custom classifications
+* Tasks can be assigned to one classification
+UX Requirements
+The main/landing page of the app should be the task dashboard.
+The dashboard should include:
+* Closable motivational quote banner
+* Today's Focus section
+* Main task workspace
+Today's Focus
+The Today's Focus section should show only tasks whose deadline is today.
+If there are no tasks due today, display a simple empty-state message:
+No tasks due today.
+Overdue Task Indicator
+If the user has overdue tasks, show a small warning indicator near the top of the dashboard:
+⚠ You have overdue tasks.
+Clicking the overdue indicator should filter the task workspace to show overdue tasks.
+Task Workspace
+The task workspace should support:
+* List View
+* Kanban Board View
+List View
+Show tasks in a list/table with:
+* Title
+* Classification
+* Priority
+* Status
+* Deadline
+* Overdue indicator
+Kanban Board View
+Show tasks in three columns:
+* TODO
+* IN_PROGRESS
+* DONE
+Each task card should show:
+* Title
+* Classification
+* Priority
+* Deadline
+* Overdue indicator
+In both views, tasks should be sorted by:
+1. Deadline
+2. Priority, with HIGH before MEDIUM before LOW
+Visual Direction
+The app should feel professional, motivating, and achievement-oriented. Users should feel a sense of momentum and accomplishment when they open the dashboard, encouraging them to focus on their next task. The design should balance productivity and positivity, avoiding both overly corporate and overly playful styles.
+Use a modern, clean interface with generous spacing, rounded cards, subtle shadows, and smooth transitions. Favor a light theme with white and soft gray backgrounds, complemented by energetic accent colors such as blue, teal, or emerald green. Use clear visual hierarchy, progress indicators, achievement badges, and status colors that help users quickly understand what needs attention.
+The overall aesthetic should feel organized and professional, but with enough energy to make productivity feel rewarding rather than overwhelming.
+Required UI Sections
+* Login page
+* Main dashboard
+* Task creation/edit form
+* Classification manager
+* List/Kanban view toggle
+Recommended Database Tables
+Create all of these tables now, even if some are used in later iterations.
+Users
+* user_id PK
+* name
+* email
+* password_hash
+* created_at
+Classifications
+* classification_id PK
+* user_id FK
+* name
+* type: DEFAULT or CUSTOM
+* created_at
+Tasks
+* task_id PK
+* user_id FK
+* assigned_user_id FK
+* classification_id FK nullable
+* group_id FK nullable
+* habit_id FK nullable
+* title
+* description
+* priority
+* status
+* deadline
+* created_at
+* updated_at
+Groups
+* group_id PK
+* created_by FK
+* group_name
+* created_at
+Group_Members
+* group_member_id PK
+* group_id FK
+* user_id FK
+* role: OWNER or MEMBER
+Habits
+* habit_id PK
+* user_id FK
+* classification_id FK
+* title
+* description
+* priority
+* recurrence_type: DAILY
+* start_date
+* is_active
+* created_at
+* updated_at
+Future Iterations
+The following features are intentionally out of scope for the initial implementation and will be developed in future iterations:
+Group Collaboration
+* Create groups
+* Add group members
+* Assign tasks to group members
+* Shared group dashboards
+Habit Builder
+* Create recurring daily habits
+* Automatically generate daily tasks from habits
+AI Habit Helper
+* Generate task recommendations from user goals
+* Allow users to review and approve AI-generated tasks
+Important Implementation Notes
+* For this first iteration, implement only authentication, task management, task classification, dashboard, list view, and Kanban view.
+* Do not implement group collaboration, habit builder, or AI habit helper yet, but create the database tables so these can be added later.
+* The code should be modular so future features can be added without major refactoring.
+* Use simple REST APIs between the React frontend and Java backend.
+* Seed the database with 3 test users and default classifications for each user.
+* Make sure each user only sees their own tasks and classifications.
+* Do not store overdue as a database column. Calculate it dynamically in the backend or frontend.
+* Include error handling and basic form validation.
+README Requirements
+Include a README with:
+* How to run the app in Replit
+* Test user credentials
+* Project structure
+* Database setup
+* API summary
+Please generate a complete working Replit app with frontend, backend, database setup, seed data, and README.
