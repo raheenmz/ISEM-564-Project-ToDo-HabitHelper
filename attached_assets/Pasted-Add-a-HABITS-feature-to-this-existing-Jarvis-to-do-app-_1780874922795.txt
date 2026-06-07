@@ -1,0 +1,32 @@
+Add a HABITS feature to this existing "Jarvis" to-do app. Don't restructure anything that
+exists — match the current patterns and the teal/green design language.
+
+Scope (two parts):
+1. Basic habit builder — create/edit/toggle/delete daily recurring habits (title, description,
+   priority, classification, start date, active). A "Generate Today's Habit Tasks" button that
+   creates today's task for each active habit, skipping duplicates for the same habit + day.
+2. AI Habit Helper — user enters a goal (+ optional target date); an AI model suggests concrete
+   tasks with deadlines; user reviews/selects; approved ones are added. Match Product.txt's
+   "goal → AI-recommended tasks → approve → dashboard" definition.
+
+Critical constraints (the agent must respect these):
+- This repo is OpenAPI-first. Edit lib/api-spec/openapi.yaml, then run
+  `pnpm --filter @workspace/api-spec run codegen` to regenerate the Zod validators
+  (@workspace/api-zod) and React Query hooks (@workspace/api-client-react). NEVER hand-edit
+  generated files.
+- DB is Drizzle + PostgreSQL. The `habits` table already exists in lib/db/src/schema/habits.ts.
+  Run `pnpm --filter @workspace/db run push` after any schema change.
+- KEY INTEGRATION: both generated habit tasks and approved AI tasks must be written into the
+  EXISTING tasks table (with a habitId link where relevant) so they automatically show up on the
+  Tasks list, Kanban, and Calendar with no extra UI. Add a nullable habitId to the tasks table
+  if it's missing.
+- Mirror existing route patterns (see routes/classifications.ts and tasks.ts: requireAuth,
+  req.session.userId, safeParse with generated schemas). Add a habits router and register it.
+- Frontend: add a "Habits" tab to dashboard.tsx using existing ui/* components + lucide icons.
+- Put ALL AI logic in one service file (services/ai.ts) using Replit's built-in AI. Read any key
+  from env — no hardcoded secrets. Request strict JSON output, parse defensively, and fall back
+  to a small static list on failure so the demo never crashes.
+- Seed 1–2 sample habits for demo user "alice" (idempotent).
+
+Use your plan mode first to lay out the steps, then build. After the spec change, run codegen and
+`pnpm run typecheck`. Don't break existing Tasks/Calendar/Groups features.
