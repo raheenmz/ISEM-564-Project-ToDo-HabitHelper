@@ -59,6 +59,12 @@ function todayStr() {
   return new Date().toISOString().split("T")[0];
 }
 
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function fmtDate(iso: string) {
+  const [y, m, d] = iso.split("-");
+  return `${d}-${MONTHS[parseInt(m, 10) - 1]}-${y}`;
+}
+
 const PRIORITY_ORDER: Record<string, number> = { HIGH: 0, MEDIUM: 1, LOW: 2 };
 
 function sortTasks(tasks: Task[]): Task[] {
@@ -148,7 +154,7 @@ function FocusCard({ task, onEdit, onDelete, onStatusChange }: {
       </div>
       {task.deadline && (
         <div className={`flex items-center gap-1 text-xs mt-auto ${task.isOverdue ? "text-amber-600 font-medium" : "text-slate-400"}`}>
-          <CalendarDays className="w-3 h-3" /> {task.deadline}
+          <CalendarDays className="w-3 h-3" /> {fmtDate(task.deadline)}
         </div>
       )}
     </div>
@@ -183,7 +189,7 @@ function KanbanCard({ task, onEdit, onDelete, onStatusChange }: {
       <div className="flex items-center justify-between mt-auto">
         {task.deadline ? (
           <div className={`flex items-center gap-1 text-xs ${task.isOverdue ? "text-amber-600 font-medium" : "text-slate-400"}`}>
-            <CalendarDays className="w-3 h-3" /> {task.deadline}
+            <CalendarDays className="w-3 h-3" /> {fmtDate(task.deadline)}
           </div>
         ) : <span />}
         <StatusPill status={task.status} onClick={() => onStatusChange(task, NEXT_STATUS[task.status] ?? "TODO")} />
@@ -427,7 +433,7 @@ export default function Dashboard() {
                         </td>
                         <td className="px-4 py-3.5 hidden md:table-cell">
                           {t.deadline
-                            ? <span className={`text-xs whitespace-nowrap ${t.isOverdue ? "text-amber-600 font-medium" : "text-slate-400"}`}>{t.deadline}</span>
+                            ? <span className={`text-xs whitespace-nowrap ${t.isOverdue ? "text-amber-600 font-medium" : "text-slate-400"}`}>{fmtDate(t.deadline)}</span>
                             : <span className="text-xs text-slate-300">—</span>}
                         </td>
                         <td className="px-4 py-3.5">
