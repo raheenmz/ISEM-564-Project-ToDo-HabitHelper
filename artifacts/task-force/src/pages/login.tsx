@@ -4,6 +4,7 @@ import { useLogin } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getGetMeQueryKey } from "@workspace/api-client-react";
 import { useAuth } from "@/hooks/use-auth";
+import { Bot } from "lucide-react";
 
 export default function Login() {
   const [, setLocation] = useLocation();
@@ -54,8 +55,10 @@ export default function Login() {
       {/* Logo */}
       <div className="mb-8 text-center">
         <div className="flex items-center justify-center gap-2.5 mb-2">
-          <div className="w-11 h-11 rounded-xl bg-teal-50 flex items-center justify-center text-teal-600 font-bold text-lg">TF</div>
-          <h1 className="text-3xl font-bold text-slate-800 tracking-tight">Task Force</h1>
+          <div className="w-11 h-11 rounded-xl bg-teal-50 flex items-center justify-center text-teal-600">
+            <Bot className="w-6 h-6" />
+          </div>
+          <h1 className="text-3xl font-bold text-slate-800 tracking-tight">Jarvis</h1>
         </div>
         <p className="text-slate-400 text-sm">Plan. Collaborate. Achieve.</p>
       </div>

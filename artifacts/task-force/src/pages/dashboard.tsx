@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  Bot,
   CheckCircle2,
   CircleDashed,
   Clock,
@@ -33,7 +34,6 @@ import {
   List,
   ListTodo,
   LogOut,
-  MoreHorizontal,
   Plus,
   CalendarDays,
 } from "lucide-react";
@@ -283,8 +283,10 @@ export default function Dashboard() {
       <header className="sticky top-0 z-10 bg-white border-b border-slate-100 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-teal-50 flex items-center justify-center text-teal-600 font-bold text-sm">TF</div>
-            <span className="font-bold text-slate-800 text-lg tracking-tight">Task Force</span>
+            <div className="w-9 h-9 rounded-xl bg-teal-50 flex items-center justify-center text-teal-600">
+              <Bot className="w-5 h-5" />
+            </div>
+            <span className="font-bold text-slate-800 text-lg tracking-tight">Jarvis</span>
           </div>
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center text-teal-700 font-semibold text-sm">
