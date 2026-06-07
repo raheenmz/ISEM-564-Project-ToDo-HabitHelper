@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
-import { db, tasksTable, classificationsTable } from "@workspace/db";
+import { db, tasksTable, classificationsTable, groupsTable, groupMembersTable } from "@workspace/db";
 import {
   GetTasksResponse,
   GetTaskResponse,
@@ -59,6 +59,19 @@ async function verifyClassificationOwnership(
   return !!row;
 }
 
+async function verifyGroupMembership(groupId: number, userId: number): Promise<boolean> {
+  const [member] = await db
+    .select({ id: groupMembersTable.id })
+    .from(groupMembersTable)
+    .where(and(eq(groupMembersTable.groupId, groupId), eq(groupMembersTable.userId, userId)));
+  if (member) return true;
+  const [creator] = await db
+    .select({ id: groupsTable.id })
+    .from(groupsTable)
+    .where(and(eq(groupsTable.id, groupId), eq(groupsTable.createdBy, userId)));
+  return !!creator;
+}
+
 router.get("/tasks", requireAuth, async (req, res): Promise<void> => {
   const userId = req.session.userId!;
 
@@ -97,7 +110,7 @@ router.post("/tasks", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
-  const { classificationId, ...rest } = parsed.data;
+  const { classificationId, groupId, ...rest } = parsed.data;
 
   if (classificationId != null) {
     const owned = await verifyClassificationOwnership(classificationId, userId);
@@ -107,9 +120,17 @@ router.post("/tasks", requireAuth, async (req, res): Promise<void> => {
     }
   }
 
+  if (groupId != null) {
+    const isMember = await verifyGroupMembership(groupId, userId);
+    if (!isMember) {
+      res.status(403).json({ error: "You are not a member of that group" });
+      return;
+    }
+  }
+
   const [task] = await db
     .insert(tasksTable)
-    .values({ ...rest, userId, classificationId: classificationId ?? null })
+    .values({ ...rest, userId, classificationId: classificationId ?? null, groupId: groupId ?? null })
     .returning();
 
   const classificationName = classificationId
@@ -195,6 +216,14 @@ router.put("/tasks/:id", requireAuth, async (req, res): Promise<void> => {
     const owned = await verifyClassificationOwnership(parsed.data.classificationId, userId);
     if (!owned) {
       res.status(403).json({ error: "Classification does not belong to you" });
+      return;
+    }
+  }
+
+  if (parsed.data.groupId != null) {
+    const isMember = await verifyGroupMembership(parsed.data.groupId, userId);
+    if (!isMember) {
+      res.status(403).json({ error: "You are not a member of that group" });
       return;
     }
   }

@@ -10,6 +10,7 @@ import {
   getGetTasksQueryKey,
   getGetDashboardSummaryQueryKey,
   getGetClassificationsQueryKey,
+  getGetGroupsQueryKey,
 } from "@workspace/api-client-react";
 import type { Task, Classification, Group } from "@workspace/api-client-react";
 import {
@@ -78,6 +79,7 @@ export function TaskFormDialog({ open, onClose, editTask }: TaskFormDialogProps)
       onSuccess: () => {
         qc.invalidateQueries({ queryKey: getGetTasksQueryKey() });
         qc.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+        qc.invalidateQueries({ queryKey: getGetGroupsQueryKey() });
         onClose();
       },
       onError: () => setFormError("Failed to save task. Please try again."),
@@ -89,6 +91,7 @@ export function TaskFormDialog({ open, onClose, editTask }: TaskFormDialogProps)
       onSuccess: () => {
         qc.invalidateQueries({ queryKey: getGetTasksQueryKey() });
         qc.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+        qc.invalidateQueries({ queryKey: getGetGroupsQueryKey() });
         onClose();
       },
       onError: () => setFormError("Failed to update task. Please try again."),
