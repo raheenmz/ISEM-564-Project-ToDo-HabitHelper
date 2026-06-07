@@ -243,7 +243,6 @@ function GroupCard({ group, currentUserId, allTasks, onDelete, onEdit, onAddMemb
   const qc = useQueryClient();
   const [nameInput, setNameInput] = useState("");
   const [emailInput, setEmailInput] = useState("");
-  const [noteAuthorId, setNoteAuthorId] = useState<number>(0);
   const [noteText, setNoteText] = useState("");
   const [postingNote, setPostingNote] = useState(false);
   const notesEndRef = useRef<HTMLDivElement>(null);
@@ -287,8 +286,6 @@ function GroupCard({ group, currentUserId, allTasks, onDelete, onEdit, onAddMemb
   const todo = group.tasks.filter((t) => t.status === "TODO").length;
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
 
-  const selectedAuthorId =
-    noteAuthorId || group.members.find((m) => m.userId === currentUserId)?.userId || (group.members[0]?.userId ?? 0);
 
   function handleAdd() {
     const query = emailInput.trim() || nameInput.trim();
@@ -299,10 +296,10 @@ function GroupCard({ group, currentUserId, allTasks, onDelete, onEdit, onAddMemb
   }
 
   async function handlePostNote() {
-    if (!noteText.trim() || !selectedAuthorId) return;
+    if (!noteText.trim() || !currentUserId) return;
     setPostingNote(true);
     try {
-      await createNote.mutateAsync({ id: group.id, data: { noteText: noteText.trim(), authorId: selectedAuthorId } });
+      await createNote.mutateAsync({ id: group.id, data: { noteText: noteText.trim(), authorId: currentUserId } });
       await qc.invalidateQueries({ queryKey: getGetGroupsQueryKey() });
       setNoteText("");
     } catch { /* ignore */ } finally {
@@ -523,7 +520,7 @@ function GroupCard({ group, currentUserId, allTasks, onDelete, onEdit, onAddMemb
                         <p className="flex-1 text-sm text-slate-600 leading-relaxed break-words bg-slate-50 rounded-2xl rounded-tl-sm px-3 py-2">
                           {n.noteText}
                         </p>
-                        {(n.authorId === currentUserId || isCreator) && (
+                        {n.authorId === currentUserId && (
                           <button
                             onClick={() => handleDeleteNote(n.id)}
                             className="opacity-0 group-hover/msg:opacity-100 transition-opacity text-slate-300 hover:text-red-400 mt-2 shrink-0"
@@ -544,15 +541,6 @@ function GroupCard({ group, currentUserId, allTasks, onDelete, onEdit, onAddMemb
 
         {/* Input area — always at bottom */}
         <div className="flex gap-2 items-end pt-1 border-t border-slate-100">
-          <select
-            value={selectedAuthorId}
-            onChange={(e) => setNoteAuthorId(Number(e.target.value))}
-            className="text-sm px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-400 bg-white text-slate-700 shrink-0"
-          >
-            {group.members.map((m) => (
-              <option key={m.id} value={m.userId}>{m.name}</option>
-            ))}
-          </select>
           <textarea
             value={noteText}
             onChange={(e) => setNoteText(e.target.value)}
