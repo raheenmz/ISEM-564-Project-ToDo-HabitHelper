@@ -179,20 +179,24 @@ export function TaskFormDialog({ open, onClose, editTask }: TaskFormDialogProps)
       return;
     }
 
-    const payload = {
+    const base = {
       title: title.trim(),
       description: description.trim() || undefined,
       priority: priority as "LOW" | "MEDIUM" | "HIGH",
       status: status as "TODO" | "IN_PROGRESS" | "DONE",
       deadline: deadline || undefined,
       classificationId: classificationId ? Number(classificationId) : undefined,
-      groupId: groupId ? Number(groupId) : undefined,
     };
 
     if (editTask) {
-      updateTask.mutate({ id: editTask.id, data: payload });
+      updateTask.mutate({
+        id: editTask.id,
+        data: { ...base, groupId: groupId ? Number(groupId) : null },
+      });
     } else {
-      createTask.mutate({ data: payload });
+      createTask.mutate({
+        data: { ...base, groupId: groupId ? Number(groupId) : undefined },
+      });
     }
   }
 
