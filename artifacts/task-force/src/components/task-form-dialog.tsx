@@ -31,12 +31,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SubtaskPanel } from "./subtask-panel";
 
 interface TaskFormDialogProps {
   open: boolean;
   onClose: () => void;
   editTask?: Task | null;
   groupMembers?: { userId: number; name: string }[];
+  onEmailSent?: (sent: boolean) => void;
 }
 
 const PRIORITY_OPTIONS = [
@@ -56,7 +58,7 @@ const ADD_CATEGORY = "__new__";
 const NO_GROUP = "__none__";
 const NO_ASSIGNEE = "__none__";
 
-export function TaskFormDialog({ open, onClose, editTask, groupMembers }: TaskFormDialogProps) {
+export function TaskFormDialog({ open, onClose, editTask, groupMembers, onEmailSent }: TaskFormDialogProps) {
   const qc = useQueryClient();
 
   const [title, setTitle] = useState("");
@@ -79,10 +81,11 @@ export function TaskFormDialog({ open, onClose, editTask, groupMembers }: TaskFo
 
   const createTask = useCreateTask({
     mutation: {
-      onSuccess: () => {
+      onSuccess: (created) => {
         qc.invalidateQueries({ queryKey: getGetTasksQueryKey() });
         qc.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
         qc.invalidateQueries({ queryKey: getGetGroupsQueryKey() });
+        onEmailSent?.(created.emailNotificationSent === true);
         onClose();
       },
       onError: () => setFormError("Failed to save task. Please try again."),
@@ -91,10 +94,11 @@ export function TaskFormDialog({ open, onClose, editTask, groupMembers }: TaskFo
 
   const updateTask = useUpdateTask({
     mutation: {
-      onSuccess: () => {
+      onSuccess: (updated) => {
         qc.invalidateQueries({ queryKey: getGetTasksQueryKey() });
         qc.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
         qc.invalidateQueries({ queryKey: getGetGroupsQueryKey() });
+        onEmailSent?.(updated.emailNotificationSent === true);
         onClose();
       },
       onError: () => setFormError("Failed to update task. Please try again."),
@@ -215,7 +219,7 @@ export function TaskFormDialog({ open, onClose, editTask, groupMembers }: TaskFo
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{editTask ? "Edit Task" : "New Task"}</DialogTitle>
         </DialogHeader>
@@ -402,6 +406,16 @@ export function TaskFormDialog({ open, onClose, editTask, groupMembers }: TaskFo
                   </span>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Subtask panel — only when editing an existing task */}
+          {editTask && (
+            <div className="border-t border-slate-100 pt-4">
+              <SubtaskPanel
+                taskId={editTask.id}
+                onAllCompleted={() => setStatus("DONE")}
+              />
             </div>
           )}
 

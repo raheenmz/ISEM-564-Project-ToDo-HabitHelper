@@ -20,6 +20,7 @@ import type { Task, Group, GroupMember } from "@workspace/api-client-react";
 import { useAuth } from "@/hooks/use-auth";
 import { TaskFormDialog } from "@/components/task-form-dialog";
 import { CreateGroupDialog } from "@/components/create-group-dialog";
+import { CalendarView } from "@/components/calendar-view";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -572,7 +573,9 @@ export default function Dashboard() {
   const { user, isLoading: authLoading, logout, isLoggingOut } = useAuth();
   const qc = useQueryClient();
 
-  const [activeSection, setActiveSection] = useState<"tasks" | "groups">("tasks");
+  const [activeSection, setActiveSection] = useState<"tasks" | "groups" | "calendar">("tasks");
+  const [toast, setToast] = useState<{ message: string; show: boolean }>({ message: "", show: false });
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [activeTab, setActiveTab] = useState<"list" | "kanban">("list");
   const [taskFormOpen, setTaskFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -656,6 +659,16 @@ export default function Dashboard() {
     );
   }
 
+  function showToast(message: string) {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast({ message, show: true });
+    toastTimerRef.current = setTimeout(() => setToast({ message: "", show: false }), 4000);
+  }
+
+  function handleEmailSent(sent: boolean) {
+    if (sent) showToast("Email notification sent");
+  }
+
   function openCreate() { setEditingTask(null); setTaskFormOpen(true); }
   function openEdit(t: Task) { setEditingTask(t); setTaskFormOpen(true); }
   function handleStatusChange(t: Task, newStatus: string) {
@@ -705,6 +718,12 @@ export default function Dashboard() {
               className={`px-4 py-1.5 rounded-full text-sm font-medium flex items-center gap-1.5 transition-colors ${activeSection === "tasks" ? "bg-white text-teal-700 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
             >
               <ListTodo className="w-4 h-4" /> Tasks
+            </button>
+            <button
+              onClick={() => setActiveSection("calendar")}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium flex items-center gap-1.5 transition-colors ${activeSection === "calendar" ? "bg-white text-teal-700 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+            >
+              <CalendarDays className="w-4 h-4" /> Calendar
             </button>
             <button
               onClick={() => setActiveSection("groups")}
@@ -980,6 +999,25 @@ export default function Dashboard() {
           </>
         )}
 
+        {/* ════ CALENDAR SECTION ════ */}
+        {activeSection === "calendar" && (
+          <section className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h2 className="font-bold text-slate-800 text-lg">Calendar</h2>
+                <p className="text-sm text-slate-400">Tasks with deadlines shown on the calendar. Click any task to edit it.</p>
+              </div>
+              <button
+                onClick={openCreate}
+                className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-full font-medium flex items-center gap-1.5 text-sm transition-colors whitespace-nowrap"
+              >
+                <Plus className="w-4 h-4" /> New Task
+              </button>
+            </div>
+            <CalendarView tasks={allTasks} groups={allGroups} onEditTask={openEdit} />
+          </section>
+        )}
+
         {/* ════ GROUPS SECTION ════ */}
         {activeSection === "groups" && (
           <section className="space-y-5">
@@ -1035,6 +1073,7 @@ export default function Dashboard() {
         open={taskFormOpen}
         onClose={() => { setTaskFormOpen(false); setEditingTask(null); }}
         editTask={editingTask}
+        onEmailSent={handleEmailSent}
       />
 
       {/* Group Task Edit Form */}
@@ -1043,6 +1082,7 @@ export default function Dashboard() {
         onClose={() => { setGroupTaskFormOpen(false); setEditingGroupTask(null); setEditingGroupTaskMembers([]); }}
         editTask={editingGroupTask}
         groupMembers={editingGroupTaskMembers}
+        onEmailSent={handleEmailSent}
       />
 
       {/* Create / Edit Group Modal */}
@@ -1051,6 +1091,24 @@ export default function Dashboard() {
         onClose={() => { setCreateGroupOpen(false); setEditingGroup(null); }}
         editGroup={editingGroup}
       />
+
+      {/* Email Toast */}
+      {toast.show && (
+        <div
+          className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 bg-teal-600 text-white px-5 py-3 rounded-2xl shadow-lg text-sm font-medium animate-in slide-in-from-bottom-4 fade-in duration-300"
+          role="status"
+        >
+          <span className="text-base">✉️</span>
+          {toast.message}
+          <button
+            onClick={() => setToast({ message: "", show: false })}
+            className="ml-2 text-teal-200 hover:text-white transition-colors text-lg leading-none"
+            aria-label="Dismiss"
+          >
+            ×
+          </button>
+        </div>
+      )}
 
       {/* Delete Confirm */}
       <AlertDialog open={!!deletingTask} onOpenChange={(v) => { if (!v) setDeletingTask(null); }}>

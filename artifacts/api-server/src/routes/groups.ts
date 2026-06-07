@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq, and, or, desc } from "drizzle-orm";
-import { db, groupsTable, groupMembersTable, groupNotesTable, usersTable, tasksTable } from "@workspace/db";
+import { eq, and, or, desc, sql, inArray } from "drizzle-orm";
+import { db, groupsTable, groupMembersTable, groupNotesTable, usersTable, tasksTable, subtasksTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 
 const router: IRouter = Router();
@@ -24,7 +24,7 @@ async function getGroupWithDetails(groupId: number) {
     .innerJoin(usersTable, eq(groupMembersTable.userId, usersTable.id))
     .where(eq(groupMembersTable.groupId, groupId));
 
-  const tasks = await db
+  const rawTasks = await db
     .select({
       id: tasksTable.id,
       title: tasksTable.title,
@@ -36,6 +36,26 @@ async function getGroupWithDetails(groupId: number) {
     .from(tasksTable)
     .leftJoin(usersTable, eq(tasksTable.assignedUserId, usersTable.id))
     .where(eq(tasksTable.groupId, groupId));
+
+  const taskIds = rawTasks.map((t) => t.id);
+  let subtaskCountMap = new Map<number, { total: number; completed: number }>();
+  if (taskIds.length > 0) {
+    const counts = await db
+      .select({
+        taskId: subtasksTable.taskId,
+        total: sql<number>`COUNT(*)::int`,
+        completed: sql<number>`COUNT(*) FILTER (WHERE ${subtasksTable.completed} = true)::int`,
+      })
+      .from(subtasksTable)
+      .where(inArray(subtasksTable.taskId, taskIds))
+      .groupBy(subtasksTable.taskId);
+    counts.forEach((c) => subtaskCountMap.set(c.taskId, { total: c.total, completed: c.completed }));
+  }
+
+  const tasks = rawTasks.map((t) => {
+    const counts = subtaskCountMap.get(t.id) ?? { total: 0, completed: 0 };
+    return { ...t, subtaskCount: counts.total, completedSubtaskCount: counts.completed };
+  });
 
   const notes = await db
     .select({

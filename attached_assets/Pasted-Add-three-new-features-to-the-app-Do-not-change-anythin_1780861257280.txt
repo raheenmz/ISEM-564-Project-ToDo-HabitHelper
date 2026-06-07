@@ -1,0 +1,37 @@
+Add three new features to the app. Do not change anything else that is already working.
+1. Built-in Calendar View
+
+Add a new "Calendar" tab in the main navigation bar next to Tasks and Groups
+The calendar shows a full monthly view with all tasks that have deadlines plotted on their due dates
+Each task appears as a colored chip on its deadline date — use the group color if the task belongs to a group, otherwise use the task priority color (red for high, orange for medium, blue for low)
+Clicking on a task chip opens the same Edit Task modal so the user can view and edit it
+Add Previous and Next month navigation arrows at the top of the calendar
+Highlight today's date with a teal/green circle
+If a date has more than 3 tasks, show the first 2 and a "+X more" chip that expands to show all
+The calendar updates automatically when tasks are added, edited, or deleted
+
+2. Email Notifications
+
+Use the app's own email system to send email notifications
+When a task is assigned to a group member, automatically send an email to that member's registered email address saying:
+"Hi [Member Name], you have been assigned a new task: [Task Name] in group [Group Name]. Priority: [Priority]. Due: [Deadline]. Log in to view details."
+When a new task is created in a group, send an email to all group members saying:
+"Hi [Member Name], a new task [Task Name] has been added to your group [Group Name] by [Creator Name]. Due: [Deadline]."
+If the member's email is not registered in the app, send them an invitation email instead saying:
+"Hi, you have been added to a group called [Group Name] on Jarvis. Click the link below to create your account and start collaborating: [App Registration Link]"
+Show a small green toast notification in the app confirming "Email notification sent" after each email is successfully sent
+If no email address is saved for a member at all, skip silently
+
+3. Subtasks
+
+Inside each task (accessible from the Edit Task modal and from within group cards), add a "Subtasks" section
+Users can add subtasks by typing a subtask title and clicking "+ Add Subtask"
+Each subtask has a checkbox to mark it complete, the subtask title, and a delete (✕) button
+The parent task's progress shows how many subtasks are completed e.g. "2 of 4 subtasks done"
+When all subtasks are marked complete, prompt the user asking "All subtasks are done — mark the main task as Done too?"
+Subtasks are saved with the task and persist after page refresh
+
+Design rules:
+
+All new features must match the exact same colors, fonts, and card style already used in the app
+Do not change anything else in the app

@@ -27,6 +27,9 @@ export interface Task {
   /** @nullable */
   deadline?: string | null;
   isOverdue: boolean;
+  subtaskCount: number;
+  completedSubtaskCount: number;
+  emailNotificationSent?: boolean;
   createdAt: string;
   updatedAt: string;
 }

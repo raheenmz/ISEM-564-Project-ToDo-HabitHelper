@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq, and } from "drizzle-orm";
-import { db, tasksTable, classificationsTable, groupsTable, groupMembersTable } from "@workspace/db";
+import { eq, and, sql, inArray } from "drizzle-orm";
+import { db, tasksTable, classificationsTable, groupsTable, groupMembersTable, usersTable, subtasksTable } from "@workspace/db";
 import {
   GetTasksResponse,
   GetTaskResponse,
@@ -12,6 +12,7 @@ import {
   DeleteTaskParams,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/auth";
+import { sendTaskAssignedEmail, sendTaskCreatedEmail } from "../services/email";
 
 const router: IRouter = Router();
 
@@ -35,13 +36,37 @@ function taskWithOverdue(task: {
   deadline: string | null;
   createdAt: Date;
   updatedAt: Date;
+  subtaskCount?: number;
+  completedSubtaskCount?: number;
+  emailNotificationSent?: boolean;
 }) {
   return {
     ...task,
+    subtaskCount: task.subtaskCount ?? 0,
+    completedSubtaskCount: task.completedSubtaskCount ?? 0,
+    emailNotificationSent: task.emailNotificationSent ?? false,
     isOverdue: computeIsOverdue(task.deadline, task.status),
     createdAt: task.createdAt.toISOString(),
     updatedAt: task.updatedAt.toISOString(),
   };
+}
+
+async function getSubtaskCounts(taskIds: number[]): Promise<Map<number, { total: number; completed: number }>> {
+  const map = new Map<number, { total: number; completed: number }>();
+  if (taskIds.length === 0) return map;
+
+  const counts = await db
+    .select({
+      taskId: subtasksTable.taskId,
+      total: sql<number>`COUNT(*)::int`,
+      completed: sql<number>`COUNT(*) FILTER (WHERE ${subtasksTable.completed} = true)::int`,
+    })
+    .from(subtasksTable)
+    .where(inArray(subtasksTable.taskId, taskIds))
+    .groupBy(subtasksTable.taskId);
+
+  counts.forEach((c) => map.set(c.taskId, { total: c.total, completed: c.completed }));
+  return map;
 }
 
 async function verifyClassificationOwnership(
@@ -99,7 +124,13 @@ router.get("/tasks", requireAuth, async (req, res): Promise<void> => {
     )
     .where(eq(tasksTable.userId, userId));
 
-  const result = rows.map(taskWithOverdue);
+  const subtaskCounts = await getSubtaskCounts(rows.map((r) => r.id));
+
+  const result = rows.map((r) => {
+    const counts = subtaskCounts.get(r.id) ?? { total: 0, completed: 0 };
+    return taskWithOverdue({ ...r, subtaskCount: counts.total, completedSubtaskCount: counts.completed });
+  });
+
   res.json(GetTasksResponse.parse(result));
 });
 
@@ -143,9 +174,58 @@ router.post("/tasks", requireAuth, async (req, res): Promise<void> => {
         .then((rows) => rows[0]?.name ?? null)
     : null;
 
+  let emailNotificationSent = false;
+
+  if (groupId != null) {
+    try {
+      const [group] = await db
+        .select({ name: groupsTable.groupName })
+        .from(groupsTable)
+        .where(eq(groupsTable.id, groupId));
+
+      const [creator] = await db
+        .select({ name: usersTable.name })
+        .from(usersTable)
+        .where(eq(usersTable.id, userId));
+
+      const members = await db
+        .select({ email: usersTable.email, name: usersTable.name, uid: usersTable.id })
+        .from(groupMembersTable)
+        .innerJoin(usersTable, eq(groupMembersTable.userId, usersTable.id))
+        .where(eq(groupMembersTable.groupId, groupId));
+
+      const groupName = group?.name ?? "your group";
+      const creatorName = creator?.name ?? "a team member";
+
+      const results = await Promise.all(
+        members
+          .filter((m) => m.uid !== userId)
+          .map((m) =>
+            sendTaskCreatedEmail({
+              toEmail: m.email,
+              toName: m.name,
+              taskTitle: task.title,
+              groupName,
+              creatorName,
+              deadline: task.deadline ?? null,
+            }),
+          ),
+      );
+      emailNotificationSent = results.some(Boolean);
+    } catch {
+      // email errors are non-fatal
+    }
+  }
+
   res.status(201).json(
     GetTaskResponse.parse(
-      taskWithOverdue({ ...task, classificationName: classificationName ?? null }),
+      taskWithOverdue({
+        ...task,
+        classificationName: classificationName ?? null,
+        subtaskCount: 0,
+        completedSubtaskCount: 0,
+        emailNotificationSent,
+      }),
     ),
   );
 });
@@ -166,6 +246,7 @@ router.get("/tasks/:id", requireAuth, async (req, res): Promise<void> => {
       classificationId: tasksTable.classificationId,
       classificationName: classificationsTable.name,
       groupId: tasksTable.groupId,
+      assignedUserId: tasksTable.assignedUserId,
       title: tasksTable.title,
       description: tasksTable.description,
       priority: tasksTable.priority,
@@ -186,7 +267,10 @@ router.get("/tasks/:id", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
-  res.json(GetTaskResponse.parse(taskWithOverdue(row)));
+  const subtaskCounts = await getSubtaskCounts([row.id]);
+  const counts = subtaskCounts.get(row.id) ?? { total: 0, completed: 0 };
+
+  res.json(GetTaskResponse.parse(taskWithOverdue({ ...row, subtaskCount: counts.total, completedSubtaskCount: counts.completed })));
 });
 
 router.put("/tasks/:id", requireAuth, async (req, res): Promise<void> => {
@@ -256,9 +340,55 @@ router.put("/tasks/:id", requireAuth, async (req, res): Promise<void> => {
         .then((rows) => rows[0]?.name ?? null)
     : null;
 
+  const subtaskCounts = await getSubtaskCounts([updated.id]);
+  const counts = subtaskCounts.get(updated.id) ?? { total: 0, completed: 0 };
+
+  let emailNotificationSent = false;
+
+  const prevAssignedUserId = existing.assignedUserId;
+  const newAssignedUserId = updated.assignedUserId;
+  const groupId = updated.groupId;
+
+  if (
+    newAssignedUserId != null &&
+    newAssignedUserId !== prevAssignedUserId &&
+    groupId != null
+  ) {
+    try {
+      const [assignee] = await db
+        .select({ email: usersTable.email, name: usersTable.name })
+        .from(usersTable)
+        .where(eq(usersTable.id, newAssignedUserId));
+
+      const [group] = await db
+        .select({ name: groupsTable.groupName })
+        .from(groupsTable)
+        .where(eq(groupsTable.id, groupId));
+
+      if (assignee) {
+        emailNotificationSent = await sendTaskAssignedEmail({
+          toEmail: assignee.email,
+          toName: assignee.name,
+          taskTitle: updated.title,
+          groupName: group?.name ?? "your group",
+          priority: updated.priority,
+          deadline: updated.deadline ?? null,
+        });
+      }
+    } catch {
+      // email errors are non-fatal
+    }
+  }
+
   res.json(
     UpdateTaskResponse.parse(
-      taskWithOverdue({ ...updated, classificationName: classificationName ?? null }),
+      taskWithOverdue({
+        ...updated,
+        classificationName: classificationName ?? null,
+        subtaskCount: counts.total,
+        completedSubtaskCount: counts.completed,
+        emailNotificationSent,
+      }),
     ),
   );
 });

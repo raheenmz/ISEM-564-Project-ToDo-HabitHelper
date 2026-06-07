@@ -16,4 +16,6 @@ export interface GroupTask {
   assigneeName?: string | null;
   /** @nullable */
   assignedUserId?: number | null;
+  subtaskCount: number;
+  completedSubtaskCount: number;
 }

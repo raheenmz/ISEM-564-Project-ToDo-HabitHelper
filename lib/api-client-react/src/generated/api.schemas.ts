@@ -57,6 +57,9 @@ export interface Task {
   /** @nullable */
   deadline?: string | null;
   isOverdue: boolean;
+  subtaskCount: number;
+  completedSubtaskCount: number;
+  emailNotificationSent?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -123,6 +126,25 @@ export interface TaskUpdate {
   assignedUserId?: number | null;
 }
 
+export interface Subtask {
+  id: number;
+  taskId: number;
+  title: string;
+  completed: boolean;
+  createdAt: string;
+}
+
+export interface SubtaskInput {
+  /** @minLength 1 */
+  title: string;
+}
+
+export interface SubtaskUpdate {
+  /** @minLength 1 */
+  title?: string;
+  completed?: boolean;
+}
+
 export type ClassificationType = typeof ClassificationType[keyof typeof ClassificationType];
 
 
@@ -185,6 +207,8 @@ export interface GroupTask {
   assigneeName?: string | null;
   /** @nullable */
   assignedUserId?: number | null;
+  subtaskCount: number;
+  completedSubtaskCount: number;
 }
 
 export interface GroupNote {

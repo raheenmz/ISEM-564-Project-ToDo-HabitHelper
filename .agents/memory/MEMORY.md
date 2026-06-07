@@ -1,2 +1,5 @@
 - [Codegen restart rule](codegen-restart.md) — after any orval codegen run, must restart task-force Vite workflow or HMR breaks
 - [Group task editing pattern](group-task-editing.md) — TaskFormDialog accepts groupMembers prop to switch into group-edit mode
+- [Subtask counts in queries](subtask-counts.md) — use SQL FILTER subquery in Drizzle for per-task counts without N+1
+- [Email service pattern](email-service.md) — Nodemailer with Ethereal in dev; emailNotificationSent returned in task response; toast shown on frontend
+- [Orval codegen query enabled](orval-enabled-pattern.md) — don't pass bare { enabled } to useGetXxx hooks; omit options entirely (component renders only when id is valid)

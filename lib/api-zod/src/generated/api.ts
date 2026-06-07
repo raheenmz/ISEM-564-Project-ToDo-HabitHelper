@@ -58,6 +58,9 @@ export const GetTasksResponseItem = zod.object({
   "status": zod.enum(['TODO', 'IN_PROGRESS', 'DONE']),
   "deadline": zod.string().nullish(),
   "isOverdue": zod.boolean(),
+  "subtaskCount": zod.number(),
+  "completedSubtaskCount": zod.number(),
+  "emailNotificationSent": zod.boolean().optional(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -101,6 +104,9 @@ export const GetTaskResponse = zod.object({
   "status": zod.enum(['TODO', 'IN_PROGRESS', 'DONE']),
   "deadline": zod.string().nullish(),
   "isOverdue": zod.boolean(),
+  "subtaskCount": zod.number(),
+  "completedSubtaskCount": zod.number(),
+  "emailNotificationSent": zod.boolean().optional(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -140,6 +146,9 @@ export const UpdateTaskResponse = zod.object({
   "status": zod.enum(['TODO', 'IN_PROGRESS', 'DONE']),
   "deadline": zod.string().nullish(),
   "isOverdue": zod.boolean(),
+  "subtaskCount": zod.number(),
+  "completedSubtaskCount": zod.number(),
+  "emailNotificationSent": zod.boolean().optional(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -150,6 +159,72 @@ export const UpdateTaskResponse = zod.object({
  */
 export const DeleteTaskParams = zod.object({
   "id": zod.coerce.number()
+})
+
+
+/**
+ * @summary List subtasks for a task
+ */
+export const GetSubtasksParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetSubtasksResponseItem = zod.object({
+  "id": zod.number(),
+  "taskId": zod.number(),
+  "title": zod.string(),
+  "completed": zod.boolean(),
+  "createdAt": zod.string()
+})
+export const GetSubtasksResponse = zod.array(GetSubtasksResponseItem)
+
+
+/**
+ * @summary Create a subtask
+ */
+export const CreateSubtaskParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+
+
+export const CreateSubtaskBody = zod.object({
+  "title": zod.string().min(1)
+})
+
+
+/**
+ * @summary Update a subtask
+ */
+export const UpdateSubtaskParams = zod.object({
+  "id": zod.coerce.number(),
+  "subtaskId": zod.coerce.number()
+})
+
+
+
+
+export const UpdateSubtaskBody = zod.object({
+  "title": zod.string().min(1).optional(),
+  "completed": zod.boolean().optional()
+})
+
+export const UpdateSubtaskResponse = zod.object({
+  "id": zod.number(),
+  "taskId": zod.number(),
+  "title": zod.string(),
+  "completed": zod.boolean(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a subtask
+ */
+export const DeleteSubtaskParams = zod.object({
+  "id": zod.coerce.number(),
+  "subtaskId": zod.coerce.number()
 })
 
 
@@ -217,7 +292,9 @@ export const GetGroupsResponseItem = zod.object({
   "status": zod.enum(['TODO', 'IN_PROGRESS', 'DONE']),
   "priority": zod.enum(['LOW', 'MEDIUM', 'HIGH']),
   "assigneeName": zod.string().nullish(),
-  "assignedUserId": zod.number().nullish()
+  "assignedUserId": zod.number().nullish(),
+  "subtaskCount": zod.number(),
+  "completedSubtaskCount": zod.number()
 })),
   "notes": zod.array(zod.object({
   "id": zod.number(),
@@ -273,7 +350,9 @@ export const UpdateGroupResponse = zod.object({
   "status": zod.enum(['TODO', 'IN_PROGRESS', 'DONE']),
   "priority": zod.enum(['LOW', 'MEDIUM', 'HIGH']),
   "assigneeName": zod.string().nullish(),
-  "assignedUserId": zod.number().nullish()
+  "assignedUserId": zod.number().nullish(),
+  "subtaskCount": zod.number(),
+  "completedSubtaskCount": zod.number()
 })),
   "notes": zod.array(zod.object({
   "id": zod.number(),
@@ -323,7 +402,9 @@ export const AddGroupMemberResponse = zod.object({
   "status": zod.enum(['TODO', 'IN_PROGRESS', 'DONE']),
   "priority": zod.enum(['LOW', 'MEDIUM', 'HIGH']),
   "assigneeName": zod.string().nullish(),
-  "assignedUserId": zod.number().nullish()
+  "assignedUserId": zod.number().nullish(),
+  "subtaskCount": zod.number(),
+  "completedSubtaskCount": zod.number()
 })),
   "notes": zod.array(zod.object({
   "id": zod.number(),
