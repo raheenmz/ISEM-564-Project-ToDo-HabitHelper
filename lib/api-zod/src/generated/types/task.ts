@@ -15,6 +15,8 @@ export interface Task {
   classificationId?: number | null;
   /** @nullable */
   classificationName?: string | null;
+  /** @nullable */
+  groupId?: number | null;
   title: string;
   /** @nullable */
   description?: string | null;

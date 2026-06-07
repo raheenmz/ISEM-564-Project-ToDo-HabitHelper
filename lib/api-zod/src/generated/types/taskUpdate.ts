@@ -17,4 +17,6 @@ export interface TaskUpdate {
   deadline?: string;
   /** @nullable */
   classificationId?: number | null;
+  /** @nullable */
+  groupId?: number | null;
 }

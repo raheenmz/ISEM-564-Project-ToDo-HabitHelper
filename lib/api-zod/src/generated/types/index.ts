@@ -6,10 +6,17 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './addGroupMemberInput';
 export * from './classification';
 export * from './classificationInput';
 export * from './classificationType';
 export * from './dashboardSummary';
+export * from './group';
+export * from './groupInput';
+export * from './groupMember';
+export * from './groupTask';
+export * from './groupTaskPriority';
+export * from './groupTaskStatus';
 export * from './healthStatus';
 export * from './loginInput';
 export * from './task';

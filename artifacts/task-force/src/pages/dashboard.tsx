@@ -6,13 +6,18 @@ import {
   useDeleteTask,
   useUpdateTask,
   useGetDashboardSummary,
+  useGetGroups,
+  useCreateGroup,
+  useDeleteGroup,
+  useAddGroupMember,
+  useRemoveGroupMember,
   getGetTasksQueryKey,
   getGetDashboardSummaryQueryKey,
+  getGetGroupsQueryKey,
 } from "@workspace/api-client-react";
-import type { Task } from "@workspace/api-client-react";
+import type { Task, Group } from "@workspace/api-client-react";
 import { useAuth } from "@/hooks/use-auth";
 import { TaskFormDialog } from "@/components/task-form-dialog";
-import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,6 +31,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Bot,
+  CalendarDays,
   CheckCircle2,
   CircleDashed,
   Clock,
@@ -35,7 +41,10 @@ import {
   ListTodo,
   LogOut,
   Plus,
-  CalendarDays,
+  Trash2,
+  Users,
+  UserPlus,
+  X,
 } from "lucide-react";
 
 const QUOTES = [
@@ -118,19 +127,16 @@ function StatusPill({ status, onClick }: { status: string; onClick?: () => void 
     <button
       onClick={onClick}
       className={`text-xs px-2.5 py-0.5 rounded-full font-medium transition-opacity hover:opacity-75 cursor-pointer whitespace-nowrap ${cls}`}
-      title="Click to advance status"
+      title={onClick ? "Click to advance status" : undefined}
     >
       {STATUS_LABELS[status] ?? status}
     </button>
   );
 }
 
-/* ── Focus card (Today's Focus row) ─────────────────────────── */
+/* ── Focus card ── */
 function FocusCard({ task, onEdit, onDelete, onStatusChange }: {
-  task: Task;
-  onEdit: (t: Task) => void;
-  onDelete: (t: Task) => void;
-  onStatusChange: (t: Task, s: string) => void;
+  task: Task; onEdit: (t: Task) => void; onDelete: (t: Task) => void; onStatusChange: (t: Task, s: string) => void;
 }) {
   const border = PRIORITY_STYLES[task.priority]?.border ?? "border-l-slate-300";
   return (
@@ -161,12 +167,9 @@ function FocusCard({ task, onEdit, onDelete, onStatusChange }: {
   );
 }
 
-/* ── Kanban card ─────────────────────────────────────────────── */
+/* ── Kanban card ── */
 function KanbanCard({ task, onEdit, onDelete, onStatusChange }: {
-  task: Task;
-  onEdit: (t: Task) => void;
-  onDelete: (t: Task) => void;
-  onStatusChange: (t: Task, s: string) => void;
+  task: Task; onEdit: (t: Task) => void; onDelete: (t: Task) => void; onStatusChange: (t: Task, s: string) => void;
 }) {
   return (
     <div className={`bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-3 group ${task.status === "DONE" ? "opacity-60" : ""}`}>
@@ -198,18 +201,130 @@ function KanbanCard({ task, onEdit, onDelete, onStatusChange }: {
   );
 }
 
-/* ── Stat tile ───────────────────────────────────────────────── */
+/* ── Stat tile ── */
 function StatTile({ label, value, bg, textColor, icon }: {
   label: string; value: number; bg: string; textColor: string; icon: React.ReactNode;
 }) {
   return (
     <div className={`${bg} rounded-3xl p-6 flex flex-col justify-between shadow-sm`} style={{ minHeight: "9rem" }}>
-      <div className="bg-white/50 w-11 h-11 rounded-full flex items-center justify-center mb-3">
-        {icon}
-      </div>
+      <div className="bg-white/50 w-11 h-11 rounded-full flex items-center justify-center mb-3">{icon}</div>
       <div>
         <p className={`${textColor} font-medium text-sm mb-1 opacity-80`}>{label}</p>
         <p className={`text-4xl font-bold ${textColor}`}>{value}</p>
+      </div>
+    </div>
+  );
+}
+
+/* ── Group card ── */
+function GroupCard({ group, currentUserId, onDelete, onAddMember, onRemoveMember }: {
+  group: Group;
+  currentUserId: number;
+  onDelete: (id: number) => void;
+  onAddMember: (groupId: number, name: string) => void;
+  onRemoveMember: (groupId: number, memberId: number) => void;
+}) {
+  const [memberInput, setMemberInput] = useState("");
+  const [memberError, setMemberError] = useState("");
+
+  function handleAdd() {
+    const name = memberInput.trim();
+    if (!name) return;
+    setMemberError("");
+    onAddMember(group.id, name);
+    setMemberInput("");
+  }
+
+  const isCreator = group.createdBy === currentUserId;
+
+  return (
+    <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 flex flex-col gap-5">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <div className="w-10 h-10 rounded-2xl bg-teal-50 flex items-center justify-center">
+            <Users className="w-5 h-5 text-teal-600" />
+          </div>
+          <div>
+            <h3 className="font-bold text-slate-800 text-base leading-tight">{group.name}</h3>
+            <p className="text-xs text-slate-400">{group.members.length} member{group.members.length !== 1 ? "s" : ""}</p>
+          </div>
+        </div>
+        {isCreator && (
+          <button
+            onClick={() => onDelete(group.id)}
+            className="text-slate-300 hover:text-red-400 transition-colors p-1 rounded-lg hover:bg-red-50"
+            title="Delete group"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+
+      {/* Members */}
+      <div className="space-y-2">
+        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Members</p>
+        <div className="flex flex-wrap gap-2">
+          {group.members.map((m) => (
+            <span key={m.id} className="inline-flex items-center gap-1.5 bg-slate-50 border border-slate-100 text-slate-700 text-xs font-medium px-2.5 py-1 rounded-full">
+              <span className="w-4 h-4 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center text-[10px] font-bold">
+                {m.name.charAt(0).toUpperCase()}
+              </span>
+              {m.name}
+              {isCreator && m.userId !== group.createdBy && (
+                <button
+                  onClick={() => onRemoveMember(group.id, m.id)}
+                  className="text-slate-300 hover:text-red-400 transition-colors leading-none ml-0.5"
+                  title={`Remove ${m.name}`}
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </span>
+          ))}
+        </div>
+
+        {/* Add member input */}
+        <div className="flex gap-2 mt-1">
+          <input
+            value={memberInput}
+            onChange={(e) => setMemberInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAdd(); }}}
+            placeholder="Add member by username…"
+            className="flex-1 text-sm px-3 py-1.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition placeholder:text-slate-300"
+          />
+          <button
+            onClick={handleAdd}
+            disabled={!memberInput.trim()}
+            className="flex items-center gap-1 bg-teal-50 hover:bg-teal-100 text-teal-700 text-xs font-medium px-3 py-1.5 rounded-xl transition-colors disabled:opacity-40"
+          >
+            <UserPlus className="w-3.5 h-3.5" /> Add
+          </button>
+        </div>
+        {memberError && <p className="text-xs text-red-500">{memberError}</p>}
+      </div>
+
+      {/* Tasks */}
+      <div className="space-y-2">
+        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+          Tasks
+          {group.tasks.length > 0 && (
+            <span className="ml-1.5 text-teal-600 font-bold">{group.tasks.length}</span>
+          )}
+        </p>
+        {group.tasks.length === 0 ? (
+          <p className="text-xs text-slate-300 italic py-2">No tasks assigned to this group yet</p>
+        ) : (
+          <div className="space-y-2">
+            {group.tasks.map((t) => (
+              <div key={t.id} className="flex items-center gap-2 py-1.5 px-3 bg-slate-50 rounded-xl">
+                <PriorityPill priority={t.priority} />
+                <span className={`text-sm text-slate-700 flex-1 truncate font-medium ${t.status === "DONE" ? "line-through text-slate-400" : ""}`}>{t.title}</span>
+                <StatusPill status={t.status} />
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -221,13 +336,17 @@ export default function Dashboard() {
   const { user, isLoading: authLoading, logout, isLoggingOut } = useAuth();
   const qc = useQueryClient();
 
+  const [activeSection, setActiveSection] = useState<"tasks" | "groups">("tasks");
   const [activeTab, setActiveTab] = useState<"list" | "kanban">("list");
   const [taskFormOpen, setTaskFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [deletingTask, setDeletingTask] = useState<Task | null>(null);
+  const [newGroupName, setNewGroupName] = useState("");
+  const [groupError, setGroupError] = useState("");
 
   const { data: tasks = [], isLoading: tasksLoading } = useGetTasks();
   const { data: summary } = useGetDashboardSummary();
+  const { data: groups = [], isLoading: groupsLoading } = useGetGroups();
 
   const deleteTask = useDeleteTask({
     mutation: {
@@ -248,15 +367,46 @@ export default function Dashboard() {
     },
   });
 
+  const createGroup = useCreateGroup({
+    mutation: {
+      onSuccess: () => {
+        qc.invalidateQueries({ queryKey: getGetGroupsQueryKey() });
+        setNewGroupName("");
+        setGroupError("");
+      },
+      onError: () => setGroupError("Failed to create group."),
+    },
+  });
+
+  const deleteGroup = useDeleteGroup({
+    mutation: {
+      onSuccess: () => qc.invalidateQueries({ queryKey: getGetGroupsQueryKey() }),
+    },
+  });
+
+  const addMember = useAddGroupMember({
+    mutation: {
+      onSuccess: () => qc.invalidateQueries({ queryKey: getGetGroupsQueryKey() }),
+      onError: () => {},
+    },
+  });
+
+  const removeMember = useRemoveGroupMember({
+    mutation: {
+      onSuccess: () => qc.invalidateQueries({ queryKey: getGetGroupsQueryKey() }),
+    },
+  });
+
   const today = todayStr();
   const quote = getQuote();
   const allTasks = tasks as Task[];
+  const allGroups = groups as Group[];
 
-  const todayTasks    = useMemo(() => sortTasks(allTasks.filter((t) => t.deadline === today && t.status !== "DONE")), [allTasks, today]);
-  const todoTasks     = useMemo(() => sortTasks(allTasks.filter((t) => t.status === "TODO")), [allTasks]);
+  const todayTasks      = useMemo(() => sortTasks(allTasks.filter((t) => t.deadline === today && t.status !== "DONE")), [allTasks, today]);
+  const todoTasks       = useMemo(() => sortTasks(allTasks.filter((t) => t.status === "TODO")), [allTasks]);
   const inProgressTasks = useMemo(() => sortTasks(allTasks.filter((t) => t.status === "IN_PROGRESS")), [allTasks]);
-  const doneTasks     = useMemo(() => sortTasks(allTasks.filter((t) => t.status === "DONE")), [allTasks]);
-  const sortedTasks   = useMemo(() => sortTasks(allTasks), [allTasks]);
+  const doneTasks       = useMemo(() => sortTasks(allTasks.filter((t) => t.status === "DONE")), [allTasks]);
+  const sortedTasks     = useMemo(() => sortTasks(allTasks), [allTasks]);
 
   useEffect(() => {
     if (!authLoading && !user) setLocation("/login");
@@ -276,6 +426,24 @@ export default function Dashboard() {
     updateTask.mutate({ id: t.id, data: { status: newStatus as "TODO" | "IN_PROGRESS" | "DONE" } });
   }
 
+  function handleCreateGroup() {
+    const name = newGroupName.trim();
+    if (!name) return;
+    createGroup.mutate({ data: { name } });
+  }
+
+  function handleDeleteGroup(id: number) {
+    deleteGroup.mutate({ id });
+  }
+
+  function handleAddMember(groupId: number, memberName: string) {
+    addMember.mutate({ id: groupId, data: { memberName } });
+  }
+
+  function handleRemoveMember(groupId: number, memberId: number) {
+    removeMember.mutate({ id: groupId, memberId });
+  }
+
   return (
     <div className="min-h-screen bg-green-50 flex flex-col font-sans">
 
@@ -288,6 +456,26 @@ export default function Dashboard() {
             </div>
             <span className="font-bold text-slate-800 text-lg tracking-tight">Jarvis</span>
           </div>
+
+          {/* Nav tabs */}
+          <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-full border border-slate-100">
+            <button
+              onClick={() => setActiveSection("tasks")}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium flex items-center gap-1.5 transition-colors ${activeSection === "tasks" ? "bg-white text-teal-700 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+            >
+              <ListTodo className="w-4 h-4" /> Tasks
+            </button>
+            <button
+              onClick={() => setActiveSection("groups")}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium flex items-center gap-1.5 transition-colors ${activeSection === "groups" ? "bg-white text-teal-700 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+            >
+              <Users className="w-4 h-4" /> Groups
+              {allGroups.length > 0 && (
+                <span className="bg-teal-100 text-teal-700 text-xs font-bold px-1.5 py-0.5 rounded-full">{allGroups.length}</span>
+              )}
+            </button>
+          </div>
+
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center text-teal-700 font-semibold text-sm">
               {user.name.charAt(0).toUpperCase()}
@@ -321,167 +509,232 @@ export default function Dashboard() {
           </button>
         </div>
 
-        {/* ── Stat Tiles ── */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <StatTile label="Total" value={summary?.totalTasks ?? allTasks.length}
-            bg="bg-teal-100" textColor="text-teal-900"
-            icon={<ListTodo className="w-5 h-5 text-teal-800" />} />
-          <StatTile label="To Do" value={summary?.todoCount ?? todoTasks.length}
-            bg="bg-orange-100" textColor="text-orange-900"
-            icon={<CircleDashed className="w-5 h-5 text-orange-800" />} />
-          <StatTile label="In Progress" value={summary?.inProgressCount ?? inProgressTasks.length}
-            bg="bg-sky-100" textColor="text-sky-900"
-            icon={<Clock className="w-5 h-5 text-sky-800" />} />
-          <StatTile label="Done" value={summary?.doneCount ?? doneTasks.length}
-            bg="bg-lime-100" textColor="text-lime-900"
-            icon={<CheckCircle2 className="w-5 h-5 text-lime-800" />} />
-        </div>
-
-        {/* ── Today's Focus ── */}
-        {!tasksLoading && (
-          <section className="space-y-3">
-            <div className="flex items-center gap-2">
-              <span className="text-base">🎯</span>
-              <h2 className="font-semibold text-slate-800 text-base">Today's Focus</h2>
-              {todayTasks.length > 0 && (
-                <span className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full font-medium">{todayTasks.length}</span>
-              )}
+        {/* ════ TASKS SECTION ════ */}
+        {activeSection === "tasks" && (
+          <>
+            {/* Stat Tiles */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <StatTile label="Total" value={summary?.totalTasks ?? allTasks.length}
+                bg="bg-teal-100" textColor="text-teal-900"
+                icon={<ListTodo className="w-5 h-5 text-teal-800" />} />
+              <StatTile label="To Do" value={summary?.todoCount ?? todoTasks.length}
+                bg="bg-orange-100" textColor="text-orange-900"
+                icon={<CircleDashed className="w-5 h-5 text-orange-800" />} />
+              <StatTile label="In Progress" value={summary?.inProgressCount ?? inProgressTasks.length}
+                bg="bg-sky-100" textColor="text-sky-900"
+                icon={<Clock className="w-5 h-5 text-sky-800" />} />
+              <StatTile label="Done" value={summary?.doneCount ?? doneTasks.length}
+                bg="bg-lime-100" textColor="text-lime-900"
+                icon={<CheckCircle2 className="w-5 h-5 text-lime-800" />} />
             </div>
-            {todayTasks.length === 0 ? (
-              <p className="text-sm text-slate-400 bg-white rounded-2xl px-5 py-4 border border-slate-100 shadow-sm">
-                No tasks due today — enjoy your day! ✨
-              </p>
+
+            {/* Today's Focus */}
+            {!tasksLoading && (
+              <section className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-base">🎯</span>
+                  <h2 className="font-semibold text-slate-800 text-base">Today's Focus</h2>
+                  {todayTasks.length > 0 && (
+                    <span className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full font-medium">{todayTasks.length}</span>
+                  )}
+                </div>
+                {todayTasks.length === 0 ? (
+                  <p className="text-sm text-slate-400 bg-white rounded-2xl px-5 py-4 border border-slate-100 shadow-sm">
+                    No tasks due today — enjoy your day! ✨
+                  </p>
+                ) : (
+                  <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {todayTasks.map((t) => (
+                      <FocusCard key={t.id} task={t} onEdit={openEdit} onDelete={setDeletingTask} onStatusChange={handleStatusChange} />
+                    ))}
+                  </div>
+                )}
+              </section>
+            )}
+
+            {/* All Tasks */}
+            <section className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="font-semibold text-slate-800 text-base">All Tasks</h2>
+                <div className="flex items-center gap-1 bg-white p-1 rounded-full shadow-sm border border-slate-100">
+                  <button
+                    onClick={() => setActiveTab("list")}
+                    className={`px-4 py-1.5 rounded-full text-sm font-medium flex items-center gap-1.5 transition-colors ${activeTab === "list" ? "bg-teal-50 text-teal-700" : "text-slate-500 hover:text-slate-700"}`}
+                  >
+                    <List className="w-4 h-4" /> List
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("kanban")}
+                    className={`px-4 py-1.5 rounded-full text-sm font-medium flex items-center gap-1.5 transition-colors ${activeTab === "kanban" ? "bg-teal-50 text-teal-700" : "text-slate-500 hover:text-slate-700"}`}
+                  >
+                    <LayoutGrid className="w-4 h-4" /> Kanban
+                  </button>
+                </div>
+              </div>
+
+              {/* List View */}
+              {activeTab === "list" && (
+                tasksLoading ? (
+                  <div className="space-y-2">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-12 w-full rounded-xl" />)}</div>
+                ) : sortedTasks.length === 0 ? (
+                  <div className="text-center py-16 bg-white rounded-3xl border border-slate-100 shadow-sm">
+                    <p className="text-4xl mb-3">📋</p>
+                    <p className="font-medium text-slate-700">No tasks yet</p>
+                    <p className="text-sm text-slate-400 mt-1">Create your first task to get started</p>
+                    <button onClick={openCreate} className="mt-4 bg-teal-600 hover:bg-teal-700 text-white px-5 py-2 rounded-full text-sm font-medium transition-colors">
+                      Create a task
+                    </button>
+                  </div>
+                ) : (
+                  <div className="bg-white rounded-3xl shadow-sm overflow-hidden border border-slate-100">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-slate-100 text-slate-400 text-xs font-medium">
+                          <th className="px-5 py-3.5 text-left font-normal w-10"></th>
+                          <th className="px-5 py-3.5 text-left font-normal">Task</th>
+                          <th className="px-4 py-3.5 text-left font-normal hidden sm:table-cell">Category</th>
+                          <th className="px-4 py-3.5 text-left font-normal">Priority</th>
+                          <th className="px-4 py-3.5 text-left font-normal">Status</th>
+                          <th className="px-4 py-3.5 text-left font-normal hidden md:table-cell">Deadline</th>
+                          <th className="px-4 py-3.5 w-16"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sortedTasks.map((t) => (
+                          <tr key={t.id} className={`border-b border-slate-50 last:border-0 group hover:bg-slate-50/50 transition-colors ${t.status === "DONE" ? "opacity-60" : ""}`}>
+                            <td className="px-5 py-3.5">
+                              <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${t.status === "DONE" ? "bg-teal-500 border-teal-500" : "border-slate-300 group-hover:border-teal-400"}`}>
+                                {t.status === "DONE" && <CheckCircle2 className="w-3 h-3 text-white" />}
+                              </div>
+                            </td>
+                            <td className="px-5 py-3.5">
+                              <div className="flex items-center gap-1.5">
+                                {t.isOverdue && <span className="text-amber-500 text-sm">⚠</span>}
+                                <span className={`font-medium ${t.status === "DONE" ? "line-through text-slate-400" : "text-slate-800"}`}>{t.title}</span>
+                              </div>
+                              {t.description && <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">{t.description}</p>}
+                            </td>
+                            <td className="px-4 py-3.5 hidden sm:table-cell">
+                              {t.classificationName
+                                ? <span className="text-xs px-2.5 py-0.5 rounded-full bg-teal-50 text-teal-700 font-medium">{t.classificationName}</span>
+                                : <span className="text-xs text-slate-300">—</span>}
+                            </td>
+                            <td className="px-4 py-3.5"><PriorityPill priority={t.priority} /></td>
+                            <td className="px-4 py-3.5">
+                              <StatusPill status={t.status} onClick={() => handleStatusChange(t, NEXT_STATUS[t.status] ?? "TODO")} />
+                            </td>
+                            <td className="px-4 py-3.5 hidden md:table-cell">
+                              {t.deadline
+                                ? <span className={`text-xs whitespace-nowrap ${t.isOverdue ? "text-amber-600 font-medium" : "text-slate-400"}`}>{fmtDate(t.deadline)}</span>
+                                : <span className="text-xs text-slate-300">—</span>}
+                            </td>
+                            <td className="px-4 py-3.5">
+                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity justify-end">
+                                <button onClick={() => openEdit(t)} className="text-xs text-slate-400 hover:text-slate-700 px-1.5 py-0.5 rounded hover:bg-slate-100">Edit</button>
+                                <button onClick={() => setDeletingTask(t)} className="text-xs text-slate-400 hover:text-red-500 px-1.5 py-0.5 rounded hover:bg-red-50">Del</button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )
+              )}
+
+              {/* Kanban View */}
+              {activeTab === "kanban" && (
+                tasksLoading ? (
+                  <div className="grid grid-cols-3 gap-4">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-48 w-full rounded-3xl" />)}</div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    {[
+                      { status: "TODO",        label: "To Do",       tasks: todoTasks,       dot: "bg-orange-400", count: "bg-orange-100 text-orange-700" },
+                      { status: "IN_PROGRESS", label: "In Progress", tasks: inProgressTasks, dot: "bg-sky-400",    count: "bg-sky-100 text-sky-700"    },
+                      { status: "DONE",        label: "Done",        tasks: doneTasks,       dot: "bg-lime-500",   count: "bg-lime-100 text-lime-700"   },
+                    ].map((col) => (
+                      <div key={col.status} className="space-y-3">
+                        <div className="flex items-center gap-2 px-1">
+                          <div className={`w-3 h-3 rounded-full ${col.dot}`} />
+                          <span className="font-semibold text-slate-700 text-sm">{col.label}</span>
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${col.count}`}>{col.tasks.length}</span>
+                        </div>
+                        {col.tasks.length === 0 ? (
+                          <div className="text-center py-8 bg-white rounded-2xl border border-slate-100 text-xs text-slate-400">No tasks here</div>
+                        ) : (
+                          col.tasks.map((t) => (
+                            <KanbanCard key={t.id} task={t} onEdit={openEdit} onDelete={setDeletingTask} onStatusChange={handleStatusChange} />
+                          ))
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )
+              )}
+            </section>
+          </>
+        )}
+
+        {/* ════ GROUPS SECTION ════ */}
+        {activeSection === "groups" && (
+          <section className="space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h2 className="font-bold text-slate-800 text-lg">Groups</h2>
+                <p className="text-sm text-slate-400">Collaborate with your team by organising tasks into groups</p>
+              </div>
+
+              {/* Create group */}
+              <div className="flex gap-2">
+                <input
+                  value={newGroupName}
+                  onChange={(e) => setNewGroupName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleCreateGroup(); }}
+                  placeholder="New group name…"
+                  className="text-sm px-4 py-2 rounded-full border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition placeholder:text-slate-300 bg-white"
+                />
+                <button
+                  onClick={handleCreateGroup}
+                  disabled={!newGroupName.trim() || createGroup.isPending}
+                  className="bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white px-4 py-2 rounded-full font-medium flex items-center gap-1.5 text-sm transition-colors whitespace-nowrap"
+                >
+                  <Plus className="w-4 h-4" /> Create Group
+                </button>
+              </div>
+            </div>
+
+            {groupError && (
+              <p className="text-sm text-red-500 bg-red-50 px-4 py-2 rounded-xl">{groupError}</p>
+            )}
+
+            {groupsLoading ? (
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-64 w-full rounded-3xl" />)}
+              </div>
+            ) : allGroups.length === 0 ? (
+              <div className="text-center py-20 bg-white rounded-3xl border border-slate-100 shadow-sm">
+                <div className="w-16 h-16 rounded-3xl bg-teal-50 flex items-center justify-center mx-auto mb-4">
+                  <Users className="w-8 h-8 text-teal-400" />
+                </div>
+                <p className="font-semibold text-slate-700 text-lg">No groups yet</p>
+                <p className="text-sm text-slate-400 mt-1">Create your first group to start collaborating</p>
+              </div>
             ) : (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {todayTasks.map((t) => (
-                  <FocusCard key={t.id} task={t} onEdit={openEdit} onDelete={setDeletingTask} onStatusChange={handleStatusChange} />
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {allGroups.map((g) => (
+                  <GroupCard
+                    key={g.id}
+                    group={g}
+                    currentUserId={user.id}
+                    onDelete={handleDeleteGroup}
+                    onAddMember={handleAddMember}
+                    onRemoveMember={handleRemoveMember}
+                  />
                 ))}
               </div>
             )}
           </section>
         )}
-
-        {/* ── All Tasks ── */}
-        <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-slate-800 text-base">All Tasks</h2>
-            {/* Tab switcher */}
-            <div className="flex items-center gap-1 bg-white p-1 rounded-full shadow-sm border border-slate-100">
-              <button
-                onClick={() => setActiveTab("list")}
-                className={`px-4 py-1.5 rounded-full text-sm font-medium flex items-center gap-1.5 transition-colors ${activeTab === "list" ? "bg-teal-50 text-teal-700" : "text-slate-500 hover:text-slate-700"}`}
-              >
-                <List className="w-4 h-4" /> List
-              </button>
-              <button
-                onClick={() => setActiveTab("kanban")}
-                className={`px-4 py-1.5 rounded-full text-sm font-medium flex items-center gap-1.5 transition-colors ${activeTab === "kanban" ? "bg-teal-50 text-teal-700" : "text-slate-500 hover:text-slate-700"}`}
-              >
-                <LayoutGrid className="w-4 h-4" /> Kanban
-              </button>
-            </div>
-          </div>
-
-          {/* List View */}
-          {activeTab === "list" && (
-            tasksLoading ? (
-              <div className="space-y-2">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-12 w-full rounded-xl" />)}</div>
-            ) : sortedTasks.length === 0 ? (
-              <div className="text-center py-16 bg-white rounded-3xl border border-slate-100 shadow-sm">
-                <p className="text-4xl mb-3">📋</p>
-                <p className="font-medium text-slate-700">No tasks yet</p>
-                <p className="text-sm text-slate-400 mt-1">Create your first task to get started</p>
-                <button onClick={openCreate} className="mt-4 bg-teal-600 hover:bg-teal-700 text-white px-5 py-2 rounded-full text-sm font-medium transition-colors">
-                  Create a task
-                </button>
-              </div>
-            ) : (
-              <div className="bg-white rounded-3xl shadow-sm overflow-hidden border border-slate-100">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-100 text-slate-400 text-xs font-medium">
-                      <th className="px-5 py-3.5 text-left font-normal w-10"></th>
-                      <th className="px-5 py-3.5 text-left font-normal">Task</th>
-                      <th className="px-4 py-3.5 text-left font-normal hidden sm:table-cell">Category</th>
-                      <th className="px-4 py-3.5 text-left font-normal">Priority</th>
-                      <th className="px-4 py-3.5 text-left font-normal">Status</th>
-                      <th className="px-4 py-3.5 text-left font-normal hidden md:table-cell">Deadline</th>
-                      <th className="px-4 py-3.5 w-16"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sortedTasks.map((t) => (
-                      <tr key={t.id} className={`border-b border-slate-50 last:border-0 group hover:bg-slate-50/50 transition-colors ${t.status === "DONE" ? "opacity-60" : ""}`}>
-                        <td className="px-5 py-3.5">
-                          <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${t.status === "DONE" ? "bg-teal-500 border-teal-500" : "border-slate-300 group-hover:border-teal-400"}`}>
-                            {t.status === "DONE" && <CheckCircle2 className="w-3 h-3 text-white" />}
-                          </div>
-                        </td>
-                        <td className="px-5 py-3.5">
-                          <div className="flex items-center gap-1.5">
-                            {t.isOverdue && <span className="text-amber-500 text-sm">⚠</span>}
-                            <span className={`font-medium ${t.status === "DONE" ? "line-through text-slate-400" : "text-slate-800"}`}>{t.title}</span>
-                          </div>
-                          {t.description && <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">{t.description}</p>}
-                        </td>
-                        <td className="px-4 py-3.5 hidden sm:table-cell">
-                          {t.classificationName
-                            ? <span className="text-xs px-2.5 py-0.5 rounded-full bg-teal-50 text-teal-700 font-medium">{t.classificationName}</span>
-                            : <span className="text-xs text-slate-300">—</span>}
-                        </td>
-                        <td className="px-4 py-3.5"><PriorityPill priority={t.priority} /></td>
-                        <td className="px-4 py-3.5">
-                          <StatusPill status={t.status} onClick={() => handleStatusChange(t, NEXT_STATUS[t.status] ?? "TODO")} />
-                        </td>
-                        <td className="px-4 py-3.5 hidden md:table-cell">
-                          {t.deadline
-                            ? <span className={`text-xs whitespace-nowrap ${t.isOverdue ? "text-amber-600 font-medium" : "text-slate-400"}`}>{fmtDate(t.deadline)}</span>
-                            : <span className="text-xs text-slate-300">—</span>}
-                        </td>
-                        <td className="px-4 py-3.5">
-                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity justify-end">
-                            <button onClick={() => openEdit(t)} className="text-xs text-slate-400 hover:text-slate-700 px-1.5 py-0.5 rounded hover:bg-slate-100">Edit</button>
-                            <button onClick={() => setDeletingTask(t)} className="text-xs text-slate-400 hover:text-red-500 px-1.5 py-0.5 rounded hover:bg-red-50">Del</button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )
-          )}
-
-          {/* Kanban View */}
-          {activeTab === "kanban" && (
-            tasksLoading ? (
-              <div className="grid grid-cols-3 gap-4">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-48 w-full rounded-3xl" />)}</div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {[
-                  { status: "TODO",        label: "To Do",       tasks: todoTasks,       dot: "bg-orange-400", count: "bg-orange-100 text-orange-700" },
-                  { status: "IN_PROGRESS", label: "In Progress", tasks: inProgressTasks, dot: "bg-sky-400",    count: "bg-sky-100 text-sky-700"    },
-                  { status: "DONE",        label: "Done",        tasks: doneTasks,       dot: "bg-lime-500",   count: "bg-lime-100 text-lime-700"   },
-                ].map((col) => (
-                  <div key={col.status} className="space-y-3">
-                    <div className="flex items-center gap-2 px-1">
-                      <div className={`w-3 h-3 rounded-full ${col.dot}`} />
-                      <span className="font-semibold text-slate-700 text-sm">{col.label}</span>
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${col.count}`}>{col.tasks.length}</span>
-                    </div>
-                    {col.tasks.length === 0 ? (
-                      <div className="text-center py-8 bg-white rounded-2xl border border-slate-100 text-xs text-slate-400">No tasks here</div>
-                    ) : (
-                      col.tasks.map((t) => (
-                        <KanbanCard key={t.id} task={t} onEdit={openEdit} onDelete={setDeletingTask} onStatusChange={handleStatusChange} />
-                      ))
-                    )}
-                  </div>
-                ))}
-              </div>
-            )
-          )}
-        </section>
       </main>
 
       {/* Task Form */}

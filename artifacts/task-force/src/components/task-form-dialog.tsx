@@ -6,11 +6,12 @@ import {
   useGetClassifications,
   useCreateClassification,
   useDeleteClassification,
+  useGetGroups,
   getGetTasksQueryKey,
   getGetDashboardSummaryQueryKey,
   getGetClassificationsQueryKey,
 } from "@workspace/api-client-react";
-import type { Task, Classification } from "@workspace/api-client-react";
+import type { Task, Classification, Group } from "@workspace/api-client-react";
 import {
   Dialog,
   DialogContent,
@@ -50,6 +51,7 @@ const STATUS_OPTIONS = [
 
 const NO_CATEGORY = "__none__";
 const ADD_CATEGORY = "__new__";
+const NO_GROUP = "__none__";
 
 export function TaskFormDialog({ open, onClose, editTask }: TaskFormDialogProps) {
   const qc = useQueryClient();
@@ -60,12 +62,15 @@ export function TaskFormDialog({ open, onClose, editTask }: TaskFormDialogProps)
   const [status, setStatus] = useState<"TODO" | "IN_PROGRESS" | "DONE">("TODO");
   const [deadline, setDeadline] = useState("");
   const [classificationId, setClassificationId] = useState<string>("");
+  const [groupId, setGroupId] = useState<string>("");
   const [newClassifName, setNewClassifName] = useState("");
   const [showNewClassif, setShowNewClassif] = useState(false);
   const [formError, setFormError] = useState("");
 
   const { data: classifications = [] } = useGetClassifications();
+  const { data: groups = [] } = useGetGroups();
   const allClassifications = classifications as Classification[];
+  const allGroups = groups as Group[];
   const customClassifications = allClassifications.filter((c) => c.type !== "DEFAULT");
 
   const createTask = useCreateTask({
@@ -122,6 +127,7 @@ export function TaskFormDialog({ open, onClose, editTask }: TaskFormDialogProps)
         setStatus(editTask.status as "TODO" | "IN_PROGRESS" | "DONE");
         setDeadline(editTask.deadline ?? "");
         setClassificationId(editTask.classificationId ? String(editTask.classificationId) : "");
+        setGroupId(editTask.groupId ? String(editTask.groupId) : "");
       } else {
         setTitle("");
         setDescription("");
@@ -129,6 +135,7 @@ export function TaskFormDialog({ open, onClose, editTask }: TaskFormDialogProps)
         setStatus("TODO");
         setDeadline("");
         setClassificationId("");
+        setGroupId("");
       }
       setNewClassifName("");
       setShowNewClassif(false);
@@ -145,6 +152,10 @@ export function TaskFormDialog({ open, onClose, editTask }: TaskFormDialogProps)
       setClassificationId(v);
       setShowNewClassif(false);
     }
+  }
+
+  function handleGroupChange(v: string) {
+    setGroupId(v === NO_GROUP ? "" : v);
   }
 
   function handleAddClassification() {
@@ -172,6 +183,7 @@ export function TaskFormDialog({ open, onClose, editTask }: TaskFormDialogProps)
       status: status as "TODO" | "IN_PROGRESS" | "DONE",
       deadline: deadline || undefined,
       classificationId: classificationId ? Number(classificationId) : undefined,
+      groupId: groupId ? Number(groupId) : undefined,
     };
 
     if (editTask) {
@@ -183,6 +195,7 @@ export function TaskFormDialog({ open, onClose, editTask }: TaskFormDialogProps)
 
   const isPending = createTask.isPending || updateTask.isPending;
   const selectValue = classificationId || NO_CATEGORY;
+  const groupSelectValue = groupId || NO_GROUP;
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
@@ -278,6 +291,26 @@ export function TaskFormDialog({ open, onClose, editTask }: TaskFormDialogProps)
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          {/* Group assignment */}
+          <div className="space-y-1.5">
+            <Label>Assign to Group</Label>
+            <Select value={groupSelectValue} onValueChange={handleGroupChange}>
+              <SelectTrigger>
+                <SelectValue placeholder="No group" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_GROUP}>No group</SelectItem>
+                {allGroups.length === 0 ? (
+                  <div className="px-3 py-2 text-xs text-muted-foreground">No groups created yet</div>
+                ) : (
+                  allGroups.map((g) => (
+                    <SelectItem key={g.id} value={String(g.id)}>{g.name}</SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
           </div>
 
           {showNewClassif && (

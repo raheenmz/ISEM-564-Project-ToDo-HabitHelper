@@ -18,6 +18,8 @@ tags:
     description: Task classifications
   - name: dashboard
     description: Dashboard data
+  - name: groups
+    description: Group collaboration
 
 paths:
   /healthz:
@@ -236,6 +238,110 @@ paths:
               schema:
                 $ref: "#/components/schemas/DashboardSummary"
 
+  /groups:
+    get:
+      operationId: getGroups
+      tags: [groups]
+      summary: List groups the current user belongs to or created
+      responses:
+        "200":
+          description: List of groups
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Group"
+    post:
+      operationId: createGroup
+      tags: [groups]
+      summary: Create a new group
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GroupInput"
+      responses:
+        "201":
+          description: Group created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Group"
+
+  /groups/{id}:
+    delete:
+      operationId: deleteGroup
+      tags: [groups]
+      summary: Delete a group (creator only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Group deleted
+        "403":
+          description: Not the group creator
+        "404":
+          description: Group not found
+
+  /groups/{id}/members:
+    post:
+      operationId: addGroupMember
+      tags: [groups]
+      summary: Add a member to a group by username
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddGroupMemberInput"
+      responses:
+        "200":
+          description: Updated group
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Group"
+        "404":
+          description: Group or user not found
+        "409":
+          description: User already a member
+
+  /groups/{id}/members/{memberId}:
+    delete:
+      operationId: removeGroupMember
+      tags: [groups]
+      summary: Remove a member from a group
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: memberId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Member removed
+        "403":
+          description: Not authorized
+        "404":
+          description: Group or member not found
+
 components:
   schemas:
     HealthStatus:
@@ -282,6 +388,8 @@ components:
           type: ["integer", "null"]
         classificationName:
           type: ["string", "null"]
+        groupId:
+          type: ["integer", "null"]
         title:
           type: string
         description:
@@ -328,6 +436,8 @@ components:
           type: string
         classificationId:
           type: integer
+        groupId:
+          type: integer
       required:
         - title
         - priority
@@ -350,6 +460,8 @@ components:
         deadline:
           type: string
         classificationId:
+          type: ["integer", "null"]
+        groupId:
           type: ["integer", "null"]
 
     Classification:
@@ -404,3 +516,78 @@ components:
         - doneCount
         - overdueCount
         - todayCount
+
+    GroupMember:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        name:
+          type: string
+      required:
+        - id
+        - userId
+        - name
+
+    GroupTask:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        status:
+          type: string
+          enum: [TODO, IN_PROGRESS, DONE]
+        priority:
+          type: string
+          enum: [LOW, MEDIUM, HIGH]
+      required:
+        - id
+        - title
+        - status
+        - priority
+
+    Group:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        createdBy:
+          type: integer
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/GroupMember"
+        tasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/GroupTask"
+      required:
+        - id
+        - name
+        - createdBy
+        - members
+        - tasks
+
+    GroupInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+      required:
+        - name
+
+    AddGroupMemberInput:
+      type: object
+      properties:
+        memberName:
+          type: string
+          minLength: 1
+      required:
+        - memberName

@@ -16,4 +16,5 @@ export interface TaskInput {
   status: TaskInputStatus;
   deadline?: string;
   classificationId?: number;
+  groupId?: number;
 }

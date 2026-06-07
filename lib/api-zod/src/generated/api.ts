@@ -50,6 +50,7 @@ export const GetTasksResponseItem = zod.object({
   "userId": zod.number(),
   "classificationId": zod.number().nullish(),
   "classificationName": zod.string().nullish(),
+  "groupId": zod.number().nullish(),
   "title": zod.string(),
   "description": zod.string().nullish(),
   "priority": zod.enum(['LOW', 'MEDIUM', 'HIGH']),
@@ -74,7 +75,8 @@ export const CreateTaskBody = zod.object({
   "priority": zod.enum(['LOW', 'MEDIUM', 'HIGH']),
   "status": zod.enum(['TODO', 'IN_PROGRESS', 'DONE']),
   "deadline": zod.string().optional(),
-  "classificationId": zod.number().optional()
+  "classificationId": zod.number().optional(),
+  "groupId": zod.number().optional()
 })
 
 
@@ -90,6 +92,7 @@ export const GetTaskResponse = zod.object({
   "userId": zod.number(),
   "classificationId": zod.number().nullish(),
   "classificationName": zod.string().nullish(),
+  "groupId": zod.number().nullish(),
   "title": zod.string(),
   "description": zod.string().nullish(),
   "priority": zod.enum(['LOW', 'MEDIUM', 'HIGH']),
@@ -117,7 +120,8 @@ export const UpdateTaskBody = zod.object({
   "priority": zod.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
   "status": zod.enum(['TODO', 'IN_PROGRESS', 'DONE']).optional(),
   "deadline": zod.string().optional(),
-  "classificationId": zod.number().nullish()
+  "classificationId": zod.number().nullish(),
+  "groupId": zod.number().nullish()
 })
 
 export const UpdateTaskResponse = zod.object({
@@ -125,6 +129,7 @@ export const UpdateTaskResponse = zod.object({
   "userId": zod.number(),
   "classificationId": zod.number().nullish(),
   "classificationName": zod.string().nullish(),
+  "groupId": zod.number().nullish(),
   "title": zod.string(),
   "description": zod.string().nullish(),
   "priority": zod.enum(['LOW', 'MEDIUM', 'HIGH']),
@@ -186,6 +191,88 @@ export const GetDashboardSummaryResponse = zod.object({
   "doneCount": zod.number(),
   "overdueCount": zod.number(),
   "todayCount": zod.number()
+})
+
+
+/**
+ * @summary List groups the current user belongs to or created
+ */
+export const GetGroupsResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "createdBy": zod.number(),
+  "members": zod.array(zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "name": zod.string()
+})),
+  "tasks": zod.array(zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "status": zod.enum(['TODO', 'IN_PROGRESS', 'DONE']),
+  "priority": zod.enum(['LOW', 'MEDIUM', 'HIGH'])
+}))
+})
+export const GetGroupsResponse = zod.array(GetGroupsResponseItem)
+
+
+/**
+ * @summary Create a new group
+ */
+
+
+
+export const CreateGroupBody = zod.object({
+  "name": zod.string().min(1)
+})
+
+
+/**
+ * @summary Delete a group (creator only)
+ */
+export const DeleteGroupParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+/**
+ * @summary Add a member to a group by username
+ */
+export const AddGroupMemberParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+
+
+export const AddGroupMemberBody = zod.object({
+  "memberName": zod.string().min(1)
+})
+
+export const AddGroupMemberResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "createdBy": zod.number(),
+  "members": zod.array(zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "name": zod.string()
+})),
+  "tasks": zod.array(zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "status": zod.enum(['TODO', 'IN_PROGRESS', 'DONE']),
+  "priority": zod.enum(['LOW', 'MEDIUM', 'HIGH'])
+}))
+})
+
+
+/**
+ * @summary Remove a member from a group
+ */
+export const RemoveGroupMemberParams = zod.object({
+  "id": zod.coerce.number(),
+  "memberId": zod.coerce.number()
 })
 
 

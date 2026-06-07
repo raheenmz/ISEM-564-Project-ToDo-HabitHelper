@@ -45,6 +45,8 @@ export interface Task {
   classificationId?: number | null;
   /** @nullable */
   classificationName?: string | null;
+  /** @nullable */
+  groupId?: number | null;
   title: string;
   /** @nullable */
   description?: string | null;
@@ -83,6 +85,7 @@ export interface TaskInput {
   status: TaskInputStatus;
   deadline?: string;
   classificationId?: number;
+  groupId?: number;
 }
 
 export type TaskUpdatePriority = typeof TaskUpdatePriority[keyof typeof TaskUpdatePriority];
@@ -112,6 +115,8 @@ export interface TaskUpdate {
   deadline?: string;
   /** @nullable */
   classificationId?: number | null;
+  /** @nullable */
+  groupId?: number | null;
 }
 
 export type ClassificationType = typeof ClassificationType[keyof typeof ClassificationType];
@@ -142,5 +147,54 @@ export interface DashboardSummary {
   doneCount: number;
   overdueCount: number;
   todayCount: number;
+}
+
+export interface GroupMember {
+  id: number;
+  userId: number;
+  name: string;
+}
+
+export type GroupTaskStatus = typeof GroupTaskStatus[keyof typeof GroupTaskStatus];
+
+
+export const GroupTaskStatus = {
+  TODO: 'TODO',
+  IN_PROGRESS: 'IN_PROGRESS',
+  DONE: 'DONE',
+} as const;
+
+export type GroupTaskPriority = typeof GroupTaskPriority[keyof typeof GroupTaskPriority];
+
+
+export const GroupTaskPriority = {
+  LOW: 'LOW',
+  MEDIUM: 'MEDIUM',
+  HIGH: 'HIGH',
+} as const;
+
+export interface GroupTask {
+  id: number;
+  title: string;
+  status: GroupTaskStatus;
+  priority: GroupTaskPriority;
+}
+
+export interface Group {
+  id: number;
+  name: string;
+  createdBy: number;
+  members: GroupMember[];
+  tasks: GroupTask[];
+}
+
+export interface GroupInput {
+  /** @minLength 1 */
+  name: string;
+}
+
+export interface AddGroupMemberInput {
+  /** @minLength 1 */
+  memberName: string;
 }
 

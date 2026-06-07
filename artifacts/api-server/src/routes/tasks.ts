@@ -26,6 +26,7 @@ function taskWithOverdue(task: {
   userId: number;
   classificationId: number | null;
   classificationName: string | null;
+  groupId: number | null;
   title: string;
   description: string | null;
   priority: string;
@@ -67,6 +68,7 @@ router.get("/tasks", requireAuth, async (req, res): Promise<void> => {
       userId: tasksTable.userId,
       classificationId: tasksTable.classificationId,
       classificationName: classificationsTable.name,
+      groupId: tasksTable.groupId,
       title: tasksTable.title,
       description: tasksTable.description,
       priority: tasksTable.priority,
@@ -140,6 +142,7 @@ router.get("/tasks/:id", requireAuth, async (req, res): Promise<void> => {
       userId: tasksTable.userId,
       classificationId: tasksTable.classificationId,
       classificationName: classificationsTable.name,
+      groupId: tasksTable.groupId,
       title: tasksTable.title,
       description: tasksTable.description,
       priority: tasksTable.priority,
