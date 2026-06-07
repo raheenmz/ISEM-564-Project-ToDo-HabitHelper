@@ -4,10 +4,6 @@ import { useLogin } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getGetMeQueryKey } from "@workspace/api-client-react";
 import { useAuth } from "@/hooks/use-auth";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
 export default function Login() {
   const [, setLocation] = useLocation();
@@ -19,9 +15,7 @@ export default function Login() {
   const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
-    if (!isLoading && user) {
-      setLocation("/");
-    }
+    if (!isLoading && user) setLocation("/");
   }, [user, isLoading, setLocation]);
 
   const loginMutation = useLogin({
@@ -48,90 +42,92 @@ export default function Login() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="w-8 h-8 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-green-50">
+        <div className="w-8 h-8 rounded-full border-4 border-teal-500 border-t-transparent animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-emerald-50 to-teal-100 p-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-green-50 p-4">
+
+      {/* Logo */}
       <div className="mb-8 text-center">
-        <div className="flex items-center justify-center gap-2 mb-2">
-          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-white font-bold text-lg">TF</div>
-          <h1 className="text-3xl font-bold text-foreground tracking-tight">Task Force</h1>
+        <div className="flex items-center justify-center gap-2.5 mb-2">
+          <div className="w-11 h-11 rounded-xl bg-teal-50 flex items-center justify-center text-teal-600 font-bold text-lg">TF</div>
+          <h1 className="text-3xl font-bold text-slate-800 tracking-tight">Task Force</h1>
         </div>
-        <p className="text-muted-foreground text-sm">Plan. Collaborate. Achieve.</p>
+        <p className="text-slate-400 text-sm">Plan. Collaborate. Achieve.</p>
       </div>
 
-      <Card className="w-full max-w-sm shadow-lg border-0">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-xl">Welcome back</CardTitle>
-          <CardDescription>Sign in to your account to continue</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="username">Username</Label>
-              <Input
-                id="username"
-                placeholder="e.g. alice"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                autoFocus
-                autoComplete="username"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
-              />
-            </div>
+      {/* Card */}
+      <div className="w-full max-w-sm bg-white rounded-3xl shadow-sm border border-slate-100 p-8">
+        <h2 className="text-xl font-bold text-slate-800 mb-1">Welcome back</h2>
+        <p className="text-sm text-slate-400 mb-6">Sign in to your account to continue</p>
 
-            {errorMsg && (
-              <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">{errorMsg}</p>
-            )}
-
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={loginMutation.isPending}
-            >
-              {loginMutation.isPending ? (
-                <span className="flex items-center gap-2">
-                  <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Signing in…
-                </span>
-              ) : (
-                "Sign in"
-              )}
-            </Button>
-          </form>
-
-          <div className="mt-5 pt-4 border-t border-border">
-            <p className="text-xs text-muted-foreground text-center font-medium mb-2">Demo credentials</p>
-            <div className="grid grid-cols-3 gap-2">
-              {["alice", "bob", "charlie"].map((name) => (
-                <button
-                  key={name}
-                  type="button"
-                  onClick={() => { setUsername(name); setPassword("test123"); }}
-                  className="text-xs py-1.5 px-2 rounded-md bg-muted hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
-                >
-                  {name}
-                </button>
-              ))}
-            </div>
-            <p className="text-xs text-muted-foreground text-center mt-2">password: test123</p>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <label htmlFor="username" className="text-sm font-medium text-slate-700">Username</label>
+            <input
+              id="username"
+              placeholder="e.g. alice"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              autoFocus
+              autoComplete="username"
+              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition"
+            />
           </div>
-        </CardContent>
-      </Card>
+
+          <div className="space-y-1.5">
+            <label htmlFor="password" className="text-sm font-medium text-slate-700">Password</label>
+            <input
+              id="password"
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition"
+            />
+          </div>
+
+          {errorMsg && (
+            <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-xl">{errorMsg}</p>
+          )}
+
+          <button
+            type="submit"
+            disabled={loginMutation.isPending}
+            className="w-full bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-white font-medium py-2.5 rounded-full transition-colors flex items-center justify-center gap-2"
+          >
+            {loginMutation.isPending ? (
+              <>
+                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Signing in…
+              </>
+            ) : "Sign in"}
+          </button>
+        </form>
+
+        {/* Demo credentials */}
+        <div className="mt-6 pt-5 border-t border-slate-100">
+          <p className="text-xs text-slate-400 text-center font-medium mb-2">Demo credentials</p>
+          <div className="grid grid-cols-3 gap-2">
+            {["alice", "bob", "charlie"].map((name) => (
+              <button
+                key={name}
+                type="button"
+                onClick={() => { setUsername(name); setPassword("test123"); }}
+                className="text-xs py-1.5 px-2 rounded-full bg-slate-50 hover:bg-teal-50 hover:text-teal-700 transition-colors text-slate-500 border border-slate-100"
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-slate-400 text-center mt-2">password: test123</p>
+        </div>
+      </div>
     </div>
   );
 }
