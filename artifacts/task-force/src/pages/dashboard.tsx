@@ -279,16 +279,6 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Stats Row */}
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
-          <StatCard label="Total" value={summary?.totalTasks ?? allTasks.length} color="text-foreground" />
-          <StatCard label="To Do" value={summary?.todoCount ?? todoTasks.length} color="text-slate-600" />
-          <StatCard label="In Progress" value={summary?.inProgressCount ?? inProgressTasks.length} color="text-blue-600" />
-          <StatCard label="Done" value={summary?.doneCount ?? doneTasks.length} color="text-emerald-600" />
-          <StatCard label="Overdue" value={summary?.overdueCount ?? allTasks.filter((t) => t.isOverdue).length} color="text-amber-500" />
-          <StatCard label="Due Today" value={summary?.todayCount ?? todayTasks.length} color="text-primary" />
-        </div>
-
         {/* Today's Focus — always shown */}
         {!tasksLoading && (
           <section>
@@ -312,6 +302,14 @@ export default function Dashboard() {
             )}
           </section>
         )}
+
+        {/* Stats Row */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <StatCard label="Total" value={summary?.totalTasks ?? allTasks.length} color="text-foreground" />
+          <StatCard label="To Do" value={summary?.todoCount ?? todoTasks.length} color="text-slate-600" />
+          <StatCard label="In Progress" value={summary?.inProgressCount ?? inProgressTasks.length} color="text-blue-600" />
+          <StatCard label="Done" value={summary?.doneCount ?? doneTasks.length} color="text-emerald-600" />
+        </div>
 
         {/* Tasks Section */}
         <section>
