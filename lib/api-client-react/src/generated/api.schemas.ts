@@ -183,6 +183,7 @@ export interface GroupTask {
 export interface Group {
   id: number;
   name: string;
+  color?: string | null;
   createdBy: number;
   members: GroupMember[];
   tasks: GroupTask[];
@@ -191,6 +192,7 @@ export interface Group {
 export interface GroupInput {
   /** @minLength 1 */
   name: string;
+  color?: string;
 }
 
 export interface AddGroupMemberInput {

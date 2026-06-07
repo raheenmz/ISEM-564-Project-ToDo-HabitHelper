@@ -7,7 +7,6 @@ import {
   useUpdateTask,
   useGetDashboardSummary,
   useGetGroups,
-  useCreateGroup,
   useDeleteGroup,
   useAddGroupMember,
   useRemoveGroupMember,
@@ -18,6 +17,7 @@ import {
 import type { Task, Group } from "@workspace/api-client-react";
 import { useAuth } from "@/hooks/use-auth";
 import { TaskFormDialog } from "@/components/task-form-dialog";
+import { CreateGroupDialog } from "@/components/create-group-dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -240,14 +240,21 @@ function GroupCard({ group, currentUserId, onDelete, onAddMember, onRemoveMember
   }
 
   const isCreator = group.createdBy === currentUserId;
+  const groupColor = group.color || "#14b8a6";
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 flex flex-col gap-5">
+    <div
+      className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 flex flex-col gap-5"
+      style={{ borderTop: `3px solid ${groupColor}` }}
+    >
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <div className="w-10 h-10 rounded-2xl bg-teal-50 flex items-center justify-center">
-            <Users className="w-5 h-5 text-teal-600" />
+          <div
+            className="w-10 h-10 rounded-2xl flex items-center justify-center"
+            style={{ backgroundColor: groupColor + "22" }}
+          >
+            <Users className="w-5 h-5" style={{ color: groupColor }} />
           </div>
           <div>
             <h3 className="font-bold text-slate-800 text-base leading-tight">{group.name}</h3>
@@ -271,7 +278,10 @@ function GroupCard({ group, currentUserId, onDelete, onAddMember, onRemoveMember
         <div className="flex flex-wrap gap-2">
           {group.members.map((m) => (
             <span key={m.id} className="inline-flex items-center gap-1.5 bg-slate-50 border border-slate-100 text-slate-700 text-xs font-medium px-2.5 py-1 rounded-full">
-              <span className="w-4 h-4 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center text-[10px] font-bold">
+              <span
+                className="w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
+                style={{ backgroundColor: groupColor }}
+              >
                 {m.name.charAt(0).toUpperCase()}
               </span>
               {m.name}
@@ -354,8 +364,7 @@ export default function Dashboard() {
   const [taskFormOpen, setTaskFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [deletingTask, setDeletingTask] = useState<Task | null>(null);
-  const [newGroupName, setNewGroupName] = useState("");
-  const [groupError, setGroupError] = useState("");
+  const [createGroupOpen, setCreateGroupOpen] = useState(false);
 
   const { data: tasks = [], isLoading: tasksLoading } = useGetTasks();
   const { data: summary } = useGetDashboardSummary();
@@ -377,17 +386,6 @@ export default function Dashboard() {
         qc.invalidateQueries({ queryKey: getGetTasksQueryKey() });
         qc.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
       },
-    },
-  });
-
-  const createGroup = useCreateGroup({
-    mutation: {
-      onSuccess: () => {
-        qc.invalidateQueries({ queryKey: getGetGroupsQueryKey() });
-        setNewGroupName("");
-        setGroupError("");
-      },
-      onError: () => setGroupError("Failed to create group."),
     },
   });
 
@@ -437,12 +435,6 @@ export default function Dashboard() {
   function openEdit(t: Task) { setEditingTask(t); setTaskFormOpen(true); }
   function handleStatusChange(t: Task, newStatus: string) {
     updateTask.mutate({ id: t.id, data: { status: newStatus as "TODO" | "IN_PROGRESS" | "DONE" } });
-  }
-
-  function handleCreateGroup() {
-    const name = newGroupName.trim();
-    if (!name) return;
-    createGroup.mutate({ data: { name } });
   }
 
   function handleDeleteGroup(id: number) {
@@ -697,28 +689,13 @@ export default function Dashboard() {
                 <p className="text-sm text-slate-400">Collaborate with your team by organising tasks into groups</p>
               </div>
 
-              {/* Create group */}
-              <div className="flex gap-2">
-                <input
-                  value={newGroupName}
-                  onChange={(e) => setNewGroupName(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") handleCreateGroup(); }}
-                  placeholder="New group name…"
-                  className="text-sm px-4 py-2 rounded-full border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition placeholder:text-slate-300 bg-white"
-                />
-                <button
-                  onClick={handleCreateGroup}
-                  disabled={!newGroupName.trim() || createGroup.isPending}
-                  className="bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white px-4 py-2 rounded-full font-medium flex items-center gap-1.5 text-sm transition-colors whitespace-nowrap"
-                >
-                  <Plus className="w-4 h-4" /> Create Group
-                </button>
-              </div>
+              <button
+                onClick={() => setCreateGroupOpen(true)}
+                className="bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-full font-medium flex items-center gap-1.5 text-sm transition-colors whitespace-nowrap"
+              >
+                <Plus className="w-4 h-4" /> Create Group
+              </button>
             </div>
-
-            {groupError && (
-              <p className="text-sm text-red-500 bg-red-50 px-4 py-2 rounded-xl">{groupError}</p>
-            )}
 
             {groupsLoading ? (
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -755,6 +732,12 @@ export default function Dashboard() {
         open={taskFormOpen}
         onClose={() => { setTaskFormOpen(false); setEditingTask(null); }}
         editTask={editingTask}
+      />
+
+      {/* Create Group Modal */}
+      <CreateGroupDialog
+        open={createGroupOpen}
+        onClose={() => setCreateGroupOpen(false)}
       />
 
       {/* Delete Confirm */}

@@ -200,6 +200,7 @@ export const GetDashboardSummaryResponse = zod.object({
 export const GetGroupsResponseItem = zod.object({
   "id": zod.number(),
   "name": zod.string(),
+  "color": zod.string().nullish(),
   "createdBy": zod.number(),
   "members": zod.array(zod.object({
   "id": zod.number(),
@@ -223,7 +224,8 @@ export const GetGroupsResponse = zod.array(GetGroupsResponseItem)
 
 
 export const CreateGroupBody = zod.object({
-  "name": zod.string().min(1)
+  "name": zod.string().min(1),
+  "color": zod.string().optional()
 })
 
 
@@ -252,6 +254,7 @@ export const AddGroupMemberBody = zod.object({
 export const AddGroupMemberResponse = zod.object({
   "id": zod.number(),
   "name": zod.string(),
+  "color": zod.string().nullish(),
   "createdBy": zod.number(),
   "members": zod.array(zod.object({
   "id": zod.number(),

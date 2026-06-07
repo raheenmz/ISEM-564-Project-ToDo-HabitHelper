@@ -557,6 +557,9 @@ components:
           type: integer
         name:
           type: string
+        color:
+          type: string
+          nullable: true
         createdBy:
           type: integer
         members:
@@ -580,6 +583,8 @@ components:
         name:
           type: string
           minLength: 1
+        color:
+          type: string
       required:
         - name
 

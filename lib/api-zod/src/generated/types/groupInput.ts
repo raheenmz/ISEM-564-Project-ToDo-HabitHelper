@@ -9,4 +9,5 @@
 export interface GroupInput {
   /** @minLength 1 */
   name: string;
+  color?: string;
 }

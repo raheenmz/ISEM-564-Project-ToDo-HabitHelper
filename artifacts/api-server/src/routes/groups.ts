@@ -37,6 +37,7 @@ async function getGroupWithDetails(groupId: number) {
   return {
     id: group.id,
     name: group.groupName,
+    color: group.color ?? "#14b8a6",
     createdBy: group.createdBy,
     members,
     tasks,
@@ -80,10 +81,13 @@ router.post("/groups", requireAuth, async (req, res): Promise<void> => {
     res.status(400).json({ error: "name is required" });
     return;
   }
+  const color = typeof req.body?.color === "string" && req.body.color.trim()
+    ? req.body.color.trim()
+    : "#14b8a6";
 
   const [group] = await db
     .insert(groupsTable)
-    .values({ groupName: name, createdBy: userId })
+    .values({ groupName: name, createdBy: userId, color })
     .returning();
 
   await db.insert(groupMembersTable).values({ groupId: group.id, userId });

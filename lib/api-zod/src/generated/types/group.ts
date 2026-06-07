@@ -11,6 +11,7 @@ import type { GroupTask } from './groupTask';
 export interface Group {
   id: number;
   name: string;
+  color?: string | null;
   createdBy: number;
   members: GroupMember[];
   tasks: GroupTask[];

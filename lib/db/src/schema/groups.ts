@@ -5,6 +5,7 @@ export const groupsTable = pgTable("groups", {
   id: serial("group_id").primaryKey(),
   createdBy: integer("created_by").notNull().references(() => usersTable.id),
   groupName: text("group_name").notNull(),
+  color: text("group_color").default("#14b8a6"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
