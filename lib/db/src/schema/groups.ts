@@ -16,5 +16,14 @@ export const groupMembersTable = pgTable("group_members", {
   role: text("role").notNull().default("MEMBER"),
 });
 
+export const groupNotesTable = pgTable("group_notes", {
+  id: serial("note_id").primaryKey(),
+  groupId: integer("group_id").notNull().references(() => groupsTable.id),
+  authorId: integer("author_id").notNull().references(() => usersTable.id),
+  noteText: text("note_text").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export type Group = typeof groupsTable.$inferSelect;
 export type GroupMember = typeof groupMembersTable.$inferSelect;
+export type GroupNote = typeof groupNotesTable.$inferSelect;

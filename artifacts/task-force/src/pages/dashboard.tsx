@@ -10,6 +10,8 @@ import {
   useDeleteGroup,
   useAddGroupMember,
   useRemoveGroupMember,
+  useCreateGroupNote,
+  useDeleteGroupNote,
   getGetTasksQueryKey,
   getGetDashboardSummaryQueryKey,
   getGetGroupsQueryKey,
@@ -41,6 +43,8 @@ import {
   List,
   ListTodo,
   LogOut,
+  MessageSquare,
+  Pencil,
   Plus,
   Trash2,
   Users,
@@ -217,70 +221,122 @@ function StatTile({ label, value, bg, textColor, icon }: {
   );
 }
 
+function fmtDateTime(iso: string) {
+  const d = new Date(iso);
+  return d.toLocaleString("en-GB", {
+    day: "2-digit", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
+}
+
 /* ── Group card ── */
-function GroupCard({ group, currentUserId, onDelete, onAddMember, onRemoveMember }: {
+function GroupCard({ group, currentUserId, onDelete, onEdit, onAddMember, onRemoveMember }: {
   group: Group;
   currentUserId: number;
   onDelete: (id: number) => void;
+  onEdit: (group: Group) => void;
   onAddMember: (groupId: number, name: string) => void;
   onRemoveMember: (groupId: number, memberId: number) => void;
 }) {
+  const qc = useQueryClient();
   const [nameInput, setNameInput] = useState("");
   const [emailInput, setEmailInput] = useState("");
-  const [memberError, setMemberError] = useState("");
+  const [noteAuthorId, setNoteAuthorId] = useState<number>(0);
+  const [noteText, setNoteText] = useState("");
+  const [postingNote, setPostingNote] = useState(false);
+
+  const createNote = useCreateGroupNote();
+  const deleteNote = useDeleteGroupNote();
+
+  const isCreator = group.createdBy === currentUserId;
+  const groupColor = group.color || "#14b8a6";
+  const notes = group.notes ?? [];
+
+  const total = group.tasks.length;
+  const done = group.tasks.filter((t) => t.status === "DONE").length;
+  const inProgress = group.tasks.filter((t) => t.status === "IN_PROGRESS").length;
+  const todo = group.tasks.filter((t) => t.status === "TODO").length;
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+
+  const selectedAuthorId =
+    noteAuthorId || group.members.find((m) => m.userId === currentUserId)?.userId || (group.members[0]?.userId ?? 0);
 
   function handleAdd() {
-    const email = emailInput.trim();
-    const name = nameInput.trim();
-    const query = email || name;
+    const query = emailInput.trim() || nameInput.trim();
     if (!query) return;
-    setMemberError("");
     onAddMember(group.id, query);
     setNameInput("");
     setEmailInput("");
   }
 
-  const isCreator = group.createdBy === currentUserId;
-  const groupColor = group.color || "#14b8a6";
+  async function handlePostNote() {
+    if (!noteText.trim() || !selectedAuthorId) return;
+    setPostingNote(true);
+    try {
+      await createNote.mutateAsync({ id: group.id, data: { noteText: noteText.trim(), authorId: selectedAuthorId } });
+      await qc.invalidateQueries({ queryKey: getGetGroupsQueryKey() });
+      setNoteText("");
+    } catch { /* ignore */ } finally {
+      setPostingNote(false);
+    }
+  }
+
+  async function handleDeleteNote(noteId: number) {
+    try {
+      await deleteNote.mutateAsync({ id: group.id, noteId });
+      await qc.invalidateQueries({ queryKey: getGetGroupsQueryKey() });
+    } catch { /* ignore */ }
+  }
 
   return (
     <div
-      className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 flex flex-col gap-5"
-      style={{ borderTop: `3px solid ${groupColor}` }}
+      className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 flex flex-col gap-6"
+      style={{ borderTop: `4px solid ${groupColor}` }}
     >
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-3">
           <div
-            className="w-10 h-10 rounded-2xl flex items-center justify-center"
+            className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
             style={{ backgroundColor: groupColor + "22" }}
           >
             <Users className="w-5 h-5" style={{ color: groupColor }} />
           </div>
           <div>
-            <h3 className="font-bold text-slate-800 text-base leading-tight">{group.name}</h3>
+            <h3 className="font-bold text-slate-800 text-lg leading-tight">{group.name}</h3>
             <p className="text-xs text-slate-400">{group.members.length} member{group.members.length !== 1 ? "s" : ""}</p>
           </div>
         </div>
-        {isCreator && (
-          <button
-            onClick={() => onDelete(group.id)}
-            className="text-slate-300 hover:text-red-400 transition-colors p-1 rounded-lg hover:bg-red-50"
-            title="Delete group"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        )}
+        <div className="flex items-center gap-1 shrink-0">
+          {isCreator && (
+            <button
+              onClick={() => onEdit(group)}
+              className="text-slate-300 hover:text-teal-500 transition-colors p-1.5 rounded-lg hover:bg-teal-50"
+              title="Edit group"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
+          )}
+          {isCreator && (
+            <button
+              onClick={() => onDelete(group.id)}
+              className="text-slate-300 hover:text-red-400 transition-colors p-1.5 rounded-lg hover:bg-red-50"
+              title="Delete group"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Members */}
-      <div className="space-y-2">
+      <div className="space-y-3">
         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Members</p>
         <div className="flex flex-wrap gap-2">
           {group.members.map((m) => (
-            <span key={m.id} className="inline-flex items-center gap-1.5 bg-slate-50 border border-slate-100 text-slate-700 text-xs font-medium px-2.5 py-1 rounded-full">
+            <span key={m.id} className="inline-flex items-center gap-1.5 bg-slate-50 border border-slate-100 text-slate-700 text-xs font-medium px-2.5 py-1.5 rounded-full">
               <span
-                className="w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
+                className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0"
                 style={{ backgroundColor: groupColor }}
               >
                 {m.name.charAt(0).toUpperCase()}
@@ -298,34 +354,29 @@ function GroupCard({ group, currentUserId, onDelete, onAddMember, onRemoveMember
             </span>
           ))}
         </div>
-
-        {/* Add member inputs */}
-        <div className="space-y-1.5 mt-1">
-          <div className="flex gap-2">
-            <input
-              value={nameInput}
-              onChange={(e) => setNameInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAdd(); }}}
-              placeholder="Name…"
-              className="flex-1 text-sm px-3 py-1.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition placeholder:text-slate-300"
-            />
-            <input
-              value={emailInput}
-              onChange={(e) => setEmailInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAdd(); }}}
-              placeholder="Email…"
-              className="flex-1 text-sm px-3 py-1.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition placeholder:text-slate-300"
-            />
-            <button
-              onClick={handleAdd}
-              disabled={!nameInput.trim() && !emailInput.trim()}
-              className="flex items-center gap-1 bg-teal-50 hover:bg-teal-100 text-teal-700 text-xs font-medium px-3 py-1.5 rounded-xl transition-colors disabled:opacity-40 whitespace-nowrap"
-            >
-              <UserPlus className="w-3.5 h-3.5" /> Add
-            </button>
-          </div>
+        <div className="flex gap-2 items-center">
+          <input
+            value={nameInput}
+            onChange={(e) => setNameInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAdd(); } }}
+            placeholder="Name…"
+            className="flex-1 text-sm px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition placeholder:text-slate-300"
+          />
+          <input
+            value={emailInput}
+            onChange={(e) => setEmailInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAdd(); } }}
+            placeholder="Email…"
+            className="flex-1 text-sm px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition placeholder:text-slate-300"
+          />
+          <button
+            onClick={handleAdd}
+            disabled={!nameInput.trim() && !emailInput.trim()}
+            className="flex items-center gap-1 bg-teal-50 hover:bg-teal-100 text-teal-700 text-xs font-medium px-3 py-2 rounded-xl transition-colors disabled:opacity-40 whitespace-nowrap"
+          >
+            <UserPlus className="w-3.5 h-3.5" /> Add
+          </button>
         </div>
-        {memberError && <p className="text-xs text-red-500">{memberError}</p>}
       </div>
 
       {/* Tasks */}
@@ -333,18 +384,120 @@ function GroupCard({ group, currentUserId, onDelete, onAddMember, onRemoveMember
         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
           Tasks
           {group.tasks.length > 0 && (
-            <span className="ml-1.5 text-teal-600 font-bold">{group.tasks.length}</span>
+            <span className="ml-1.5 font-bold" style={{ color: groupColor }}>{group.tasks.length}</span>
           )}
         </p>
         {group.tasks.length === 0 ? (
-          <p className="text-xs text-slate-300 italic py-2">No tasks assigned to this group yet</p>
+          <p className="text-xs text-slate-300 italic py-1">No tasks assigned to this group yet</p>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             {group.tasks.map((t) => (
-              <div key={t.id} className="flex items-center gap-2 py-1.5 px-3 bg-slate-50 rounded-xl">
+              <div key={t.id} className="flex items-center gap-2.5 py-2 px-3 bg-slate-50 rounded-xl">
                 <PriorityPill priority={t.priority} />
-                <span className={`text-sm text-slate-700 flex-1 truncate font-medium ${t.status === "DONE" ? "line-through text-slate-400" : ""}`}>{t.title}</span>
+                <span className={`text-sm flex-1 min-w-0 truncate font-medium ${t.status === "DONE" ? "line-through text-slate-400" : "text-slate-700"}`}>
+                  {t.title}
+                </span>
                 <StatusPill status={t.status} />
+                {t.assigneeName ? (
+                  <span className="text-xs text-slate-400 whitespace-nowrap shrink-0 hidden sm:block">{t.assigneeName}</span>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Progress */}
+      <div className="space-y-2.5">
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Progress</p>
+          <span className="text-xs font-bold" style={{ color: groupColor }}>{pct}%</span>
+        </div>
+        <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all duration-500"
+            style={{ width: `${pct}%`, backgroundColor: groupColor }}
+          />
+        </div>
+        <p className="text-xs text-slate-400">
+          {done} of {total} task{total !== 1 ? "s" : ""} completed
+        </p>
+        <div className="flex gap-2 flex-wrap">
+          <span className="inline-flex items-center gap-1.5 text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full font-medium">
+            <span className="w-2 h-2 rounded-full bg-orange-400" />
+            To Do <strong>{todo}</strong>
+          </span>
+          <span className="inline-flex items-center gap-1.5 text-xs bg-sky-50 text-sky-700 px-2.5 py-1 rounded-full font-medium">
+            <span className="w-2 h-2 rounded-full bg-sky-400" />
+            In Progress <strong>{inProgress}</strong>
+          </span>
+          <span className="inline-flex items-center gap-1.5 text-xs bg-lime-50 text-lime-700 px-2.5 py-1 rounded-full font-medium">
+            <span className="w-2 h-2 rounded-full bg-lime-500" />
+            Done <strong>{done}</strong>
+          </span>
+        </div>
+      </div>
+
+      {/* Notes */}
+      <div className="space-y-3">
+        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Notes</p>
+        <div className="flex gap-2 items-start">
+          <select
+            value={selectedAuthorId}
+            onChange={(e) => setNoteAuthorId(Number(e.target.value))}
+            className="text-sm px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-400 bg-white text-slate-700 shrink-0"
+          >
+            {group.members.map((m) => (
+              <option key={m.id} value={m.userId}>{m.name}</option>
+            ))}
+          </select>
+          <textarea
+            value={noteText}
+            onChange={(e) => setNoteText(e.target.value)}
+            placeholder="Type a note…"
+            rows={2}
+            className="flex-1 text-sm px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition placeholder:text-slate-300 resize-none"
+          />
+          <button
+            onClick={handlePostNote}
+            disabled={!noteText.trim() || postingNote}
+            className="flex items-center gap-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-medium px-3 py-2 rounded-xl transition-colors disabled:opacity-40 whitespace-nowrap shrink-0 self-end mb-px"
+          >
+            {postingNote ? (
+              <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <><MessageSquare className="w-3.5 h-3.5" /> Post</>
+            )}
+          </button>
+        </div>
+        {notes.length === 0 ? (
+          <p className="text-xs text-slate-300 italic py-1">No notes yet — be the first to leave one</p>
+        ) : (
+          <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+            {notes.map((n) => (
+              <div key={n.id} className="bg-slate-50 rounded-2xl px-4 py-3 flex gap-3 items-start">
+                <div
+                  className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0 mt-0.5"
+                  style={{ backgroundColor: groupColor }}
+                >
+                  {n.authorName.charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs font-semibold text-slate-700">{n.authorName}</span>
+                    <span className="text-[10px] text-slate-400">{fmtDateTime(n.createdAt)}</span>
+                  </div>
+                  <p className="text-sm text-slate-600 leading-relaxed break-words">{n.noteText}</p>
+                </div>
+                {(n.authorId === currentUserId || isCreator) && (
+                  <button
+                    onClick={() => handleDeleteNote(n.id)}
+                    className="text-slate-300 hover:text-red-400 transition-colors flex-shrink-0 mt-0.5"
+                    title="Delete note"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -366,6 +519,7 @@ export default function Dashboard() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [deletingTask, setDeletingTask] = useState<Task | null>(null);
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
+  const [editingGroup, setEditingGroup] = useState<Group | null>(null);
   const [overdueBannerDismissed, setOverdueBannerDismissed] = useState(false);
   const [statusFilter, setStatusFilter] = useState<"ALL" | "TODO" | "IN_PROGRESS" | "DONE" | "OVERDUE">("ALL");
 
@@ -448,6 +602,11 @@ export default function Dashboard() {
 
   function handleDeleteGroup(id: number) {
     deleteGroup.mutate({ id });
+  }
+
+  function handleEditGroup(group: Group) {
+    setEditingGroup(group);
+    setCreateGroupOpen(true);
   }
 
   function handleAddMember(groupId: number, memberName: string) {
@@ -771,8 +930,8 @@ export default function Dashboard() {
             </div>
 
             {groupsLoading ? (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-64 w-full rounded-3xl" />)}
+              <div className="space-y-4">
+                {[...Array(2)].map((_, i) => <Skeleton key={i} className="h-96 w-full rounded-3xl" />)}
               </div>
             ) : allGroups.length === 0 ? (
               <div className="text-center py-20 bg-white rounded-3xl border border-slate-100 shadow-sm">
@@ -783,13 +942,14 @@ export default function Dashboard() {
                 <p className="text-sm text-slate-400 mt-1">Create your first group to start collaborating</p>
               </div>
             ) : (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="space-y-4">
                 {allGroups.map((g) => (
                   <GroupCard
                     key={g.id}
                     group={g}
                     currentUserId={user.id}
                     onDelete={handleDeleteGroup}
+                    onEdit={handleEditGroup}
                     onAddMember={handleAddMember}
                     onRemoveMember={handleRemoveMember}
                   />
@@ -807,10 +967,11 @@ export default function Dashboard() {
         editTask={editingTask}
       />
 
-      {/* Create Group Modal */}
+      {/* Create / Edit Group Modal */}
       <CreateGroupDialog
         open={createGroupOpen}
-        onClose={() => setCreateGroupOpen(false)}
+        onClose={() => { setCreateGroupOpen(false); setEditingGroup(null); }}
+        editGroup={editingGroup}
       />
 
       {/* Delete Confirm */}

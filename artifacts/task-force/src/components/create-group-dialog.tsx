@@ -1,10 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useCreateGroup,
+  useUpdateGroup,
   useAddGroupMember,
+  useRemoveGroupMember,
   getGetGroupsQueryKey,
 } from "@workspace/api-client-react";
+import type { Group } from "@workspace/api-client-react";
 import {
   Dialog,
   DialogContent,
@@ -33,29 +36,44 @@ interface MemberRow { name: string; email: string; }
 interface CreateGroupDialogProps {
   open: boolean;
   onClose: () => void;
+  editGroup?: Group | null;
 }
 
-export function CreateGroupDialog({ open, onClose }: CreateGroupDialogProps) {
+export function CreateGroupDialog({ open, onClose, editGroup }: CreateGroupDialogProps) {
   const qc = useQueryClient();
+  const isEdit = !!editGroup;
+
   const [groupName, setGroupName] = useState("");
   const [color, setColor] = useState(GROUP_COLORS[0].hex);
   const [memberRows, setMemberRows] = useState<MemberRow[]>([]);
+  const [removedMemberIds, setRemovedMemberIds] = useState<number[]>([]);
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
 
   const createGroup = useCreateGroup();
+  const updateGroup = useUpdateGroup();
   const addMember = useAddGroupMember();
+  const removeMember = useRemoveGroupMember();
 
-  function resetForm() {
-    setGroupName("");
-    setColor(GROUP_COLORS[0].hex);
-    setMemberRows([]);
-    setFormError("");
-    setSaving(false);
-  }
+  useEffect(() => {
+    if (open && editGroup) {
+      setGroupName(editGroup.name);
+      setColor(editGroup.color ?? GROUP_COLORS[0].hex);
+      setMemberRows([]);
+      setRemovedMemberIds([]);
+      setFormError("");
+      setSaving(false);
+    } else if (open && !editGroup) {
+      setGroupName("");
+      setColor(GROUP_COLORS[0].hex);
+      setMemberRows([]);
+      setRemovedMemberIds([]);
+      setFormError("");
+      setSaving(false);
+    }
+  }, [open, editGroup]);
 
   function handleClose() {
-    resetForm();
     onClose();
   }
 
@@ -73,6 +91,12 @@ export function CreateGroupDialog({ open, onClose }: CreateGroupDialogProps) {
     );
   }
 
+  function toggleRemoveExistingMember(memberId: number) {
+    setRemovedMemberIds((prev) =>
+      prev.includes(memberId) ? prev.filter((id) => id !== memberId) : [...prev, memberId]
+    );
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const name = groupName.trim();
@@ -83,30 +107,49 @@ export function CreateGroupDialog({ open, onClose }: CreateGroupDialogProps) {
     setFormError("");
     setSaving(true);
     try {
-      const newGroup = await createGroup.mutateAsync({ data: { name, color } });
+      let groupId: number;
+
+      if (isEdit && editGroup) {
+        await updateGroup.mutateAsync({ id: editGroup.id, data: { name, color } });
+        groupId = editGroup.id;
+
+        for (const memberId of removedMemberIds) {
+          try {
+            await removeMember.mutateAsync({ id: groupId, memberId });
+          } catch { /* skip */ }
+        }
+      } else {
+        const newGroup = await createGroup.mutateAsync({ data: { name, color } });
+        groupId = newGroup.id;
+      }
+
       for (const row of memberRows) {
         const query = row.email.trim() || row.name.trim();
         if (!query) continue;
         try {
-          await addMember.mutateAsync({ id: newGroup.id, data: { memberName: query } });
-        } catch {
-          /* skip members that can't be found */
-        }
+          await addMember.mutateAsync({ id: groupId, data: { memberName: query } });
+        } catch { /* skip members that can't be found */ }
       }
+
       await qc.invalidateQueries({ queryKey: getGetGroupsQueryKey() });
       handleClose();
     } catch {
-      setFormError("Failed to create group. Please try again.");
+      setFormError(
+        isEdit ? "Failed to update group. Please try again." : "Failed to create group. Please try again."
+      );
     } finally {
       setSaving(false);
     }
   }
 
+  const existingMembers = editGroup?.members ?? [];
+  const creatorId = editGroup?.createdBy;
+
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>New Group</DialogTitle>
+          <DialogTitle>{isEdit ? "Edit Group" : "New Group"}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 py-1">
@@ -148,11 +191,47 @@ export function CreateGroupDialog({ open, onClose }: CreateGroupDialogProps) {
 
           <div className="space-y-2">
             <Label>Members</Label>
-            {memberRows.length === 0 ? (
+
+            {isEdit && existingMembers.length > 0 && (
+              <div className="flex flex-wrap gap-2 pb-1">
+                {existingMembers.map((m) => {
+                  const isCreator = m.userId === creatorId;
+                  const isRemoved = removedMemberIds.includes(m.id);
+                  return (
+                    <span
+                      key={m.id}
+                      className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border transition-all ${
+                        isRemoved
+                          ? "bg-red-50 border-red-200 text-red-400 line-through"
+                          : "bg-slate-50 border-slate-200 text-slate-700"
+                      }`}
+                    >
+                      {m.name}
+                      {!isCreator && (
+                        <button
+                          type="button"
+                          onClick={() => toggleRemoveExistingMember(m.id)}
+                          className={`transition-colors leading-none ${
+                            isRemoved ? "text-red-300 hover:text-red-500" : "text-slate-300 hover:text-red-400"
+                          }`}
+                          title={isRemoved ? "Undo remove" : `Remove ${m.name}`}
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      )}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+
+            {memberRows.length === 0 && !isEdit && (
               <p className="text-xs text-muted-foreground py-1">
                 No members added yet. Click below to invite teammates.
               </p>
-            ) : (
+            )}
+
+            {memberRows.length > 0 && (
               <div className="space-y-2">
                 {memberRows.map((row, i) => (
                   <div key={i} className="flex gap-2 items-center">
@@ -180,6 +259,7 @@ export function CreateGroupDialog({ open, onClose }: CreateGroupDialogProps) {
                 ))}
               </div>
             )}
+
             <Button
               type="button"
               variant="outline"
@@ -207,6 +287,8 @@ export function CreateGroupDialog({ open, onClose }: CreateGroupDialogProps) {
                   <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   Saving…
                 </span>
+              ) : isEdit ? (
+                "Save Changes"
               ) : (
                 "Save Group"
               )}

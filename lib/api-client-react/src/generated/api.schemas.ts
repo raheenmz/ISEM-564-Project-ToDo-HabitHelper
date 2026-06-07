@@ -178,6 +178,15 @@ export interface GroupTask {
   title: string;
   status: GroupTaskStatus;
   priority: GroupTaskPriority;
+  assigneeName?: string | null;
+}
+
+export interface GroupNote {
+  id: number;
+  authorId: number;
+  authorName: string;
+  noteText: string;
+  createdAt: string;
 }
 
 export interface Group {
@@ -187,12 +196,25 @@ export interface Group {
   createdBy: number;
   members: GroupMember[];
   tasks: GroupTask[];
+  notes: GroupNote[];
 }
 
 export interface GroupInput {
   /** @minLength 1 */
   name: string;
   color?: string;
+}
+
+export interface UpdateGroupInput {
+  /** @minLength 1 */
+  name?: string;
+  color?: string;
+}
+
+export interface GroupNoteInput {
+  /** @minLength 1 */
+  noteText: string;
+  authorId?: number;
 }
 
 export interface AddGroupMemberInput {

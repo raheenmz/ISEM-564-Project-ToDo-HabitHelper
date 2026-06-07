@@ -271,6 +271,33 @@ paths:
                 $ref: "#/components/schemas/Group"
 
   /groups/{id}:
+    patch:
+      operationId: updateGroup
+      tags: [groups]
+      summary: Update group name and/or color (creator only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateGroupInput"
+      responses:
+        "200":
+          description: Updated group
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Group"
+        "403":
+          description: Not the group creator
+        "404":
+          description: Group not found
     delete:
       operationId: deleteGroup
       tags: [groups]
@@ -341,6 +368,74 @@ paths:
           description: Not authorized
         "404":
           description: Group or member not found
+
+  /groups/{id}/notes:
+    get:
+      operationId: getGroupNotes
+      tags: [groups]
+      summary: List notes for a group
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of notes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GroupNote"
+    post:
+      operationId: createGroupNote
+      tags: [groups]
+      summary: Post a note to a group
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GroupNoteInput"
+      responses:
+        "201":
+          description: Note created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GroupNote"
+
+  /groups/{id}/notes/{noteId}:
+    delete:
+      operationId: deleteGroupNote
+      tags: [groups]
+      summary: Delete a group note
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: noteId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Note deleted
+        "403":
+          description: Not authorized
+        "404":
+          description: Note not found
 
 components:
   schemas:
@@ -544,11 +639,35 @@ components:
         priority:
           type: string
           enum: [LOW, MEDIUM, HIGH]
+        assigneeName:
+          type: string
+          nullable: true
       required:
         - id
         - title
         - status
         - priority
+
+    GroupNote:
+      type: object
+      properties:
+        id:
+          type: integer
+        authorId:
+          type: integer
+        authorName:
+          type: string
+        noteText:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - authorId
+        - authorName
+        - noteText
+        - createdAt
 
     Group:
       type: object
@@ -570,12 +689,17 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/GroupTask"
+        notes:
+          type: array
+          items:
+            $ref: "#/components/schemas/GroupNote"
       required:
         - id
         - name
         - createdBy
         - members
         - tasks
+        - notes
 
     GroupInput:
       type: object
@@ -587,6 +711,26 @@ components:
           type: string
       required:
         - name
+
+    UpdateGroupInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        color:
+          type: string
+
+    GroupNoteInput:
+      type: object
+      properties:
+        noteText:
+          type: string
+          minLength: 1
+        authorId:
+          type: integer
+      required:
+        - noteText
 
     AddGroupMemberInput:
       type: object

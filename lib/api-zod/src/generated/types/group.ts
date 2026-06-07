@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { GroupMember } from './groupMember';
+import type { GroupNote } from './groupNote';
 import type { GroupTask } from './groupTask';
 
 export interface Group {
@@ -15,4 +16,5 @@ export interface Group {
   createdBy: number;
   members: GroupMember[];
   tasks: GroupTask[];
+  notes: GroupNote[];
 }

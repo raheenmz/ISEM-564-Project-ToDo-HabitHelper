@@ -26,11 +26,14 @@ import type {
   DashboardSummary,
   Group,
   GroupInput,
+  GroupNote,
+  GroupNoteInput,
   HealthStatus,
   LoginInput,
   Task,
   TaskInput,
   TaskUpdate,
+  UpdateGroupInput,
   User
 } from './api.schemas';
 
@@ -1152,6 +1155,78 @@ export const useCreateGroup = <TError = ErrorType<unknown>,
       return useMutation(getCreateGroupMutationOptions(options));
     }
 
+export const getUpdateGroupUrl = (id: number,) => {
+
+
+
+
+  return `/api/groups/${id}`
+}
+
+/**
+ * @summary Update group name and/or color (creator only)
+ */
+export const updateGroup = async (id: number,
+    updateGroupInput: UpdateGroupInput, options?: RequestInit): Promise<Group> => {
+
+  return customFetch<Group>(getUpdateGroupUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      updateGroupInput,)
+  }
+);}
+
+
+
+
+export const getUpdateGroupMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateGroup>>, TError,{id: number;data: BodyType<UpdateGroupInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateGroup>>, TError,{id: number;data: BodyType<UpdateGroupInput>}, TContext> => {
+
+const mutationKey = ['updateGroup'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateGroup>>, {id: number;data: BodyType<UpdateGroupInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateGroup(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateGroupMutationResult = NonNullable<Awaited<ReturnType<typeof updateGroup>>>
+    export type UpdateGroupMutationBody = BodyType<UpdateGroupInput>
+    export type UpdateGroupMutationError = ErrorType<void>
+
+    /**
+ * @summary Update group name and/or color (creator only)
+ */
+export const useUpdateGroup = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateGroup>>, TError,{id: number;data: BodyType<UpdateGroupInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateGroup>>,
+        TError,
+        {id: number;data: BodyType<UpdateGroupInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateGroupMutationOptions(options));
+    }
+
 export const getDeleteGroupUrl = (id: number,) => {
 
 
@@ -1364,5 +1439,226 @@ export const useRemoveGroupMember = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getRemoveGroupMemberMutationOptions(options));
+    }
+
+export const getGetGroupNotesUrl = (id: number,) => {
+
+
+
+
+  return `/api/groups/${id}/notes`
+}
+
+/**
+ * @summary List notes for a group
+ */
+export const getGroupNotes = async (id: number, options?: RequestInit): Promise<GroupNote[]> => {
+
+  return customFetch<GroupNote[]>(getGetGroupNotesUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetGroupNotesQueryKey = (id: number,) => {
+    return [
+    `/api/groups/${id}/notes`
+    ] as const;
+    }
+
+
+export const getGetGroupNotesQueryOptions = <TData = Awaited<ReturnType<typeof getGroupNotes>>, TError = ErrorType<unknown>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGroupNotes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetGroupNotesQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getGroupNotes>>> = ({ signal }) => getGroupNotes(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getGroupNotes>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetGroupNotesQueryResult = NonNullable<Awaited<ReturnType<typeof getGroupNotes>>>
+export type GetGroupNotesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List notes for a group
+ */
+
+export function useGetGroupNotes<TData = Awaited<ReturnType<typeof getGroupNotes>>, TError = ErrorType<unknown>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getGroupNotes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetGroupNotesQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateGroupNoteUrl = (id: number,) => {
+
+
+
+
+  return `/api/groups/${id}/notes`
+}
+
+/**
+ * @summary Post a note to a group
+ */
+export const createGroupNote = async (id: number,
+    groupNoteInput: GroupNoteInput, options?: RequestInit): Promise<GroupNote> => {
+
+  return customFetch<GroupNote>(getCreateGroupNoteUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      groupNoteInput,)
+  }
+);}
+
+
+
+
+export const getCreateGroupNoteMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createGroupNote>>, TError,{id: number;data: BodyType<GroupNoteInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createGroupNote>>, TError,{id: number;data: BodyType<GroupNoteInput>}, TContext> => {
+
+const mutationKey = ['createGroupNote'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createGroupNote>>, {id: number;data: BodyType<GroupNoteInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  createGroupNote(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateGroupNoteMutationResult = NonNullable<Awaited<ReturnType<typeof createGroupNote>>>
+    export type CreateGroupNoteMutationBody = BodyType<GroupNoteInput>
+    export type CreateGroupNoteMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Post a note to a group
+ */
+export const useCreateGroupNote = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createGroupNote>>, TError,{id: number;data: BodyType<GroupNoteInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createGroupNote>>,
+        TError,
+        {id: number;data: BodyType<GroupNoteInput>},
+        TContext
+      > => {
+      return useMutation(getCreateGroupNoteMutationOptions(options));
+    }
+
+export const getDeleteGroupNoteUrl = (id: number,
+    noteId: number,) => {
+
+
+
+
+  return `/api/groups/${id}/notes/${noteId}`
+}
+
+/**
+ * @summary Delete a group note
+ */
+export const deleteGroupNote = async (id: number,
+    noteId: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteGroupNoteUrl(id,noteId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteGroupNoteMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteGroupNote>>, TError,{id: number;noteId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteGroupNote>>, TError,{id: number;noteId: number}, TContext> => {
+
+const mutationKey = ['deleteGroupNote'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteGroupNote>>, {id: number;noteId: number}> = (props) => {
+          const {id,noteId} = props ?? {};
+
+          return  deleteGroupNote(id,noteId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteGroupNoteMutationResult = NonNullable<Awaited<ReturnType<typeof deleteGroupNote>>>
+
+    export type DeleteGroupNoteMutationError = ErrorType<void>
+
+    /**
+ * @summary Delete a group note
+ */
+export const useDeleteGroupNote = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteGroupNote>>, TError,{id: number;noteId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteGroupNote>>,
+        TError,
+        {id: number;noteId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteGroupNoteMutationOptions(options));
     }
 

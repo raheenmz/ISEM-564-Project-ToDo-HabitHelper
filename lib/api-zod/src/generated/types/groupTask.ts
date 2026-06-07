@@ -13,4 +13,5 @@ export interface GroupTask {
   title: string;
   status: GroupTaskStatus;
   priority: GroupTaskPriority;
+  assigneeName?: string | null;
 }

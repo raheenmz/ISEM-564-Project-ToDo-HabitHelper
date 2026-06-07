@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq, and, inArray, or } from "drizzle-orm";
-import { db, groupsTable, groupMembersTable, usersTable, tasksTable } from "@workspace/db";
+import { eq, and, or, desc } from "drizzle-orm";
+import { db, groupsTable, groupMembersTable, groupNotesTable, usersTable, tasksTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 
 const router: IRouter = Router();
@@ -24,15 +24,31 @@ async function getGroupWithDetails(groupId: number) {
     .innerJoin(usersTable, eq(groupMembersTable.userId, usersTable.id))
     .where(eq(groupMembersTable.groupId, groupId));
 
+  const assigneeAlias = usersTable;
   const tasks = await db
     .select({
       id: tasksTable.id,
       title: tasksTable.title,
       status: tasksTable.status,
       priority: tasksTable.priority,
+      assigneeName: usersTable.name,
     })
     .from(tasksTable)
+    .leftJoin(usersTable, eq(tasksTable.assignedUserId, usersTable.id))
     .where(eq(tasksTable.groupId, groupId));
+
+  const notes = await db
+    .select({
+      id: groupNotesTable.id,
+      authorId: groupNotesTable.authorId,
+      authorName: usersTable.name,
+      noteText: groupNotesTable.noteText,
+      createdAt: groupNotesTable.createdAt,
+    })
+    .from(groupNotesTable)
+    .innerJoin(usersTable, eq(groupNotesTable.authorId, usersTable.id))
+    .where(eq(groupNotesTable.groupId, groupId))
+    .orderBy(desc(groupNotesTable.createdAt));
 
   return {
     id: group.id,
@@ -41,6 +57,7 @@ async function getGroupWithDetails(groupId: number) {
     createdBy: group.createdBy,
     members,
     tasks,
+    notes,
   };
 }
 
@@ -81,9 +98,10 @@ router.post("/groups", requireAuth, async (req, res): Promise<void> => {
     res.status(400).json({ error: "name is required" });
     return;
   }
-  const color = typeof req.body?.color === "string" && req.body.color.trim()
-    ? req.body.color.trim()
-    : "#14b8a6";
+  const color =
+    typeof req.body?.color === "string" && req.body.color.trim()
+      ? req.body.color.trim()
+      : "#14b8a6";
 
   const [group] = await db
     .insert(groupsTable)
@@ -94,6 +112,46 @@ router.post("/groups", requireAuth, async (req, res): Promise<void> => {
 
   const result = await getGroupWithDetails(group.id);
   res.status(201).json(result);
+});
+
+router.patch("/groups/:id", requireAuth, async (req, res): Promise<void> => {
+  const userId = req.session.userId!;
+  const groupId = parseInt(String(req.params.id), 10);
+
+  if (isNaN(groupId)) {
+    res.status(400).json({ error: "Invalid group id" });
+    return;
+  }
+
+  const [group] = await db
+    .select()
+    .from(groupsTable)
+    .where(eq(groupsTable.id, groupId));
+
+  if (!group) {
+    res.status(404).json({ error: "Group not found" });
+    return;
+  }
+
+  if (group.createdBy !== userId) {
+    res.status(403).json({ error: "Only the group creator can edit it" });
+    return;
+  }
+
+  const updates: { groupName?: string; color?: string } = {};
+  if (typeof req.body?.name === "string" && req.body.name.trim()) {
+    updates.groupName = req.body.name.trim();
+  }
+  if (typeof req.body?.color === "string" && req.body.color.trim()) {
+    updates.color = req.body.color.trim();
+  }
+
+  if (Object.keys(updates).length > 0) {
+    await db.update(groupsTable).set(updates).where(eq(groupsTable.id, groupId));
+  }
+
+  const result = await getGroupWithDetails(groupId);
+  res.json(result);
 });
 
 router.delete("/groups/:id", requireAuth, async (req, res): Promise<void> => {
@@ -120,6 +178,7 @@ router.delete("/groups/:id", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
+  await db.delete(groupNotesTable).where(eq(groupNotesTable.groupId, groupId));
   await db.delete(groupMembersTable).where(eq(groupMembersTable.groupId, groupId));
   await db.update(tasksTable).set({ groupId: null }).where(eq(tasksTable.groupId, groupId));
   await db.delete(groupsTable).where(eq(groupsTable.id, groupId));
@@ -136,7 +195,8 @@ router.post("/groups/:id/members", requireAuth, async (req, res): Promise<void> 
     return;
   }
 
-  const memberName = typeof req.body?.memberName === "string" ? req.body.memberName.trim() : "";
+  const memberName =
+    typeof req.body?.memberName === "string" ? req.body.memberName.trim() : "";
   if (!memberName) {
     res.status(400).json({ error: "memberName is required" });
     return;
@@ -155,7 +215,9 @@ router.post("/groups/:id/members", requireAuth, async (req, res): Promise<void> 
   const isMember = await db
     .select({ id: groupMembersTable.id })
     .from(groupMembersTable)
-    .where(and(eq(groupMembersTable.groupId, groupId), eq(groupMembersTable.userId, userId)))
+    .where(
+      and(eq(groupMembersTable.groupId, groupId), eq(groupMembersTable.userId, userId))
+    )
     .then((rows) => rows.length > 0);
 
   if (!isMember && group.createdBy !== userId) {
@@ -181,7 +243,12 @@ router.post("/groups/:id/members", requireAuth, async (req, res): Promise<void> 
   const alreadyMember = await db
     .select({ id: groupMembersTable.id })
     .from(groupMembersTable)
-    .where(and(eq(groupMembersTable.groupId, groupId), eq(groupMembersTable.userId, targetUser.id)))
+    .where(
+      and(
+        eq(groupMembersTable.groupId, groupId),
+        eq(groupMembersTable.userId, targetUser.id)
+      )
+    )
     .then((rows) => rows.length > 0);
 
   if (alreadyMember) {
@@ -195,13 +262,67 @@ router.post("/groups/:id/members", requireAuth, async (req, res): Promise<void> 
   res.json(result);
 });
 
-router.delete("/groups/:id/members/:memberId", requireAuth, async (req, res): Promise<void> => {
+router.delete(
+  "/groups/:id/members/:memberId",
+  requireAuth,
+  async (req, res): Promise<void> => {
+    const userId = req.session.userId!;
+    const groupId = parseInt(String(req.params.id), 10);
+    const memberId = parseInt(String(req.params.memberId), 10);
+
+    if (isNaN(groupId) || isNaN(memberId)) {
+      res.status(400).json({ error: "Invalid id" });
+      return;
+    }
+
+    const [group] = await db
+      .select()
+      .from(groupsTable)
+      .where(eq(groupsTable.id, groupId));
+
+    if (!group) {
+      res.status(404).json({ error: "Group not found" });
+      return;
+    }
+
+    const [member] = await db
+      .select()
+      .from(groupMembersTable)
+      .where(
+        and(eq(groupMembersTable.id, memberId), eq(groupMembersTable.groupId, groupId))
+      );
+
+    if (!member) {
+      res.status(404).json({ error: "Member not found" });
+      return;
+    }
+
+    if (group.createdBy !== userId && member.userId !== userId) {
+      res.status(403).json({ error: "Not authorized to remove this member" });
+      return;
+    }
+
+    if (member.userId === group.createdBy) {
+      res.status(403).json({ error: "Cannot remove the group creator" });
+      return;
+    }
+
+    await db
+      .delete(groupMembersTable)
+      .where(
+        and(eq(groupMembersTable.id, memberId), eq(groupMembersTable.groupId, groupId))
+      );
+
+    res.sendStatus(204);
+  }
+);
+
+router.get("/groups/:id/notes", requireAuth, async (req, res): Promise<void> => {
   const userId = req.session.userId!;
   const groupId = parseInt(String(req.params.id), 10);
-  const memberId = parseInt(String(req.params.memberId), 10);
 
-  if (isNaN(groupId) || isNaN(memberId)) {
-    res.status(400).json({ error: "Invalid id" });
+  if (isNaN(groupId)) {
+    res.status(400).json({ error: "Invalid group id" });
     return;
   }
 
@@ -215,31 +336,138 @@ router.delete("/groups/:id/members/:memberId", requireAuth, async (req, res): Pr
     return;
   }
 
-  const [member] = await db
-    .select()
+  const isMember = await db
+    .select({ id: groupMembersTable.id })
     .from(groupMembersTable)
-    .where(and(eq(groupMembersTable.id, memberId), eq(groupMembersTable.groupId, groupId)));
+    .where(
+      and(eq(groupMembersTable.groupId, groupId), eq(groupMembersTable.userId, userId))
+    )
+    .then((rows) => rows.length > 0);
 
-  if (!member) {
-    res.status(404).json({ error: "Member not found" });
+  if (!isMember && group.createdBy !== userId) {
+    res.status(403).json({ error: "Not a member of this group" });
     return;
   }
 
-  if (group.createdBy !== userId && member.userId !== userId) {
-    res.status(403).json({ error: "Not authorized to remove this member" });
-    return;
-  }
+  const notes = await db
+    .select({
+      id: groupNotesTable.id,
+      authorId: groupNotesTable.authorId,
+      authorName: usersTable.name,
+      noteText: groupNotesTable.noteText,
+      createdAt: groupNotesTable.createdAt,
+    })
+    .from(groupNotesTable)
+    .innerJoin(usersTable, eq(groupNotesTable.authorId, usersTable.id))
+    .where(eq(groupNotesTable.groupId, groupId))
+    .orderBy(desc(groupNotesTable.createdAt));
 
-  if (member.userId === group.createdBy) {
-    res.status(403).json({ error: "Cannot remove the group creator" });
-    return;
-  }
-
-  await db
-    .delete(groupMembersTable)
-    .where(and(eq(groupMembersTable.id, memberId), eq(groupMembersTable.groupId, groupId)));
-
-  res.sendStatus(204);
+  res.json(notes);
 });
+
+router.post("/groups/:id/notes", requireAuth, async (req, res): Promise<void> => {
+  const userId = req.session.userId!;
+  const groupId = parseInt(String(req.params.id), 10);
+
+  if (isNaN(groupId)) {
+    res.status(400).json({ error: "Invalid group id" });
+    return;
+  }
+
+  const noteText =
+    typeof req.body?.noteText === "string" ? req.body.noteText.trim() : "";
+  if (!noteText) {
+    res.status(400).json({ error: "noteText is required" });
+    return;
+  }
+
+  const authorId =
+    typeof req.body?.authorId === "number" ? req.body.authorId : userId;
+
+  const [group] = await db
+    .select()
+    .from(groupsTable)
+    .where(eq(groupsTable.id, groupId));
+
+  if (!group) {
+    res.status(404).json({ error: "Group not found" });
+    return;
+  }
+
+  const authorIsMember = await db
+    .select({ id: groupMembersTable.id })
+    .from(groupMembersTable)
+    .where(
+      and(eq(groupMembersTable.groupId, groupId), eq(groupMembersTable.userId, authorId))
+    )
+    .then((rows) => rows.length > 0);
+
+  if (!authorIsMember && group.createdBy !== authorId) {
+    res.status(403).json({ error: "Author is not a member of this group" });
+    return;
+  }
+
+  const [note] = await db
+    .insert(groupNotesTable)
+    .values({ groupId, authorId, noteText })
+    .returning();
+
+  const [noteWithAuthor] = await db
+    .select({
+      id: groupNotesTable.id,
+      authorId: groupNotesTable.authorId,
+      authorName: usersTable.name,
+      noteText: groupNotesTable.noteText,
+      createdAt: groupNotesTable.createdAt,
+    })
+    .from(groupNotesTable)
+    .innerJoin(usersTable, eq(groupNotesTable.authorId, usersTable.id))
+    .where(eq(groupNotesTable.id, note.id));
+
+  res.status(201).json(noteWithAuthor);
+});
+
+router.delete(
+  "/groups/:id/notes/:noteId",
+  requireAuth,
+  async (req, res): Promise<void> => {
+    const userId = req.session.userId!;
+    const groupId = parseInt(String(req.params.id), 10);
+    const noteId = parseInt(String(req.params.noteId), 10);
+
+    if (isNaN(groupId) || isNaN(noteId)) {
+      res.status(400).json({ error: "Invalid id" });
+      return;
+    }
+
+    const [note] = await db
+      .select()
+      .from(groupNotesTable)
+      .where(and(eq(groupNotesTable.id, noteId), eq(groupNotesTable.groupId, groupId)));
+
+    if (!note) {
+      res.status(404).json({ error: "Note not found" });
+      return;
+    }
+
+    const [group] = await db
+      .select()
+      .from(groupsTable)
+      .where(eq(groupsTable.id, groupId));
+
+    if (note.authorId !== userId && group?.createdBy !== userId) {
+      res.status(403).json({ error: "Not authorized to delete this note" });
+      return;
+    }
+
+    await db
+      .delete(groupNotesTable)
+      .where(
+        and(eq(groupNotesTable.id, noteId), eq(groupNotesTable.groupId, groupId))
+      );
+
+    res.sendStatus(204);
+  }
+);
 
 export default router;

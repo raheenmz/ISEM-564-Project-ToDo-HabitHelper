@@ -211,7 +211,15 @@ export const GetGroupsResponseItem = zod.object({
   "id": zod.number(),
   "title": zod.string(),
   "status": zod.enum(['TODO', 'IN_PROGRESS', 'DONE']),
-  "priority": zod.enum(['LOW', 'MEDIUM', 'HIGH'])
+  "priority": zod.enum(['LOW', 'MEDIUM', 'HIGH']),
+  "assigneeName": zod.string().nullish()
+})),
+  "notes": zod.array(zod.object({
+  "id": zod.number(),
+  "authorId": zod.number(),
+  "authorName": zod.string(),
+  "noteText": zod.string(),
+  "createdAt": zod.coerce.date()
 }))
 })
 export const GetGroupsResponse = zod.array(GetGroupsResponseItem)
@@ -226,6 +234,48 @@ export const GetGroupsResponse = zod.array(GetGroupsResponseItem)
 export const CreateGroupBody = zod.object({
   "name": zod.string().min(1),
   "color": zod.string().optional()
+})
+
+
+/**
+ * @summary Update group name and/or color (creator only)
+ */
+export const UpdateGroupParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+
+
+export const UpdateGroupBody = zod.object({
+  "name": zod.string().min(1).optional(),
+  "color": zod.string().optional()
+})
+
+export const UpdateGroupResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "color": zod.string().nullish(),
+  "createdBy": zod.number(),
+  "members": zod.array(zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "name": zod.string()
+})),
+  "tasks": zod.array(zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "status": zod.enum(['TODO', 'IN_PROGRESS', 'DONE']),
+  "priority": zod.enum(['LOW', 'MEDIUM', 'HIGH']),
+  "assigneeName": zod.string().nullish()
+})),
+  "notes": zod.array(zod.object({
+  "id": zod.number(),
+  "authorId": zod.number(),
+  "authorName": zod.string(),
+  "noteText": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
 })
 
 
@@ -265,7 +315,15 @@ export const AddGroupMemberResponse = zod.object({
   "id": zod.number(),
   "title": zod.string(),
   "status": zod.enum(['TODO', 'IN_PROGRESS', 'DONE']),
-  "priority": zod.enum(['LOW', 'MEDIUM', 'HIGH'])
+  "priority": zod.enum(['LOW', 'MEDIUM', 'HIGH']),
+  "assigneeName": zod.string().nullish()
+})),
+  "notes": zod.array(zod.object({
+  "id": zod.number(),
+  "authorId": zod.number(),
+  "authorName": zod.string(),
+  "noteText": zod.string(),
+  "createdAt": zod.coerce.date()
 }))
 })
 
@@ -276,6 +334,48 @@ export const AddGroupMemberResponse = zod.object({
 export const RemoveGroupMemberParams = zod.object({
   "id": zod.coerce.number(),
   "memberId": zod.coerce.number()
+})
+
+
+/**
+ * @summary List notes for a group
+ */
+export const GetGroupNotesParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const GetGroupNotesResponseItem = zod.object({
+  "id": zod.number(),
+  "authorId": zod.number(),
+  "authorName": zod.string(),
+  "noteText": zod.string(),
+  "createdAt": zod.coerce.date()
+})
+export const GetGroupNotesResponse = zod.array(GetGroupNotesResponseItem)
+
+
+/**
+ * @summary Post a note to a group
+ */
+export const CreateGroupNoteParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+
+
+export const CreateGroupNoteBody = zod.object({
+  "noteText": zod.string().min(1),
+  "authorId": zod.number().optional()
+})
+
+
+/**
+ * @summary Delete a group note
+ */
+export const DeleteGroupNoteParams = zod.object({
+  "id": zod.coerce.number(),
+  "noteId": zod.coerce.number()
 })
 
 
