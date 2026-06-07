@@ -55,8 +55,8 @@ export function Sunshine() {
         {/* Greeting & New Task */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex-1">
-            <h2 className="text-2xl font-bold text-slate-800 mb-1">Welcome back, Alice 👋</h2>
-            <p className="text-slate-500 italic">"The secret of getting ahead is getting started."</p>
+            <h2 className="text-2xl font-bold text-slate-800 mb-1">Hey there, Alice 👋</h2>
+            <p className="text-slate-500 italic">"May the Task Force be with you."</p>
           </div>
           <button className="bg-teal-600 hover:bg-teal-700 text-white px-6 py-4 rounded-full font-medium flex items-center justify-center gap-2 transition-colors shadow-sm whitespace-nowrap">
             <Plus className="w-5 h-5" />
