@@ -19,10 +19,12 @@ const tasks = {
     { id: 1, title: "Update Homepage Copy", cat: "Design", catC: "bg-blue-50 text-blue-600", pri: "Medium", priC: "bg-sky-50 text-sky-700", date: "Tomorrow" },
     { id: 2, title: "Fix Navigation Bug", cat: "Engineering", catC: "bg-pink-50 text-pink-600", pri: "High", priC: "bg-orange-50 text-orange-700", date: "Oct 12" },
     { id: 3, title: "Draft Q4 OKRs", cat: "Planning", catC: "bg-violet-50 text-violet-600", pri: "Medium", priC: "bg-sky-50 text-sky-700", date: "Oct 25" },
+    { id: 9, title: "Order new office supplies", cat: "Admin", catC: "bg-slate-100 text-slate-500", pri: "Low", priC: "bg-slate-100 text-slate-500", date: "Nov 1" },
   ],
   inProgress: [
     { id: 4, title: "Write Q3 Marketing Report", cat: "Marketing", catC: "bg-purple-50 text-purple-600", pri: "High", priC: "bg-orange-50 text-orange-700", date: "Today" },
     { id: 5, title: "Interview UI/UX Candidate", cat: "HR", catC: "bg-amber-50 text-amber-600", pri: "Medium", priC: "bg-sky-50 text-sky-700", date: "Oct 16" },
+    { id: 10, title: "Update team wiki docs", cat: "Docs", catC: "bg-lime-50 text-lime-600", pri: "Low", priC: "bg-slate-100 text-slate-500", date: "Oct 30" },
   ],
   done: [
     { id: 6, title: "Review Q4 Budget", cat: "Finance", catC: "bg-slate-100 text-slate-500", pri: "Low", priC: "bg-slate-100 text-slate-500", date: "Oct 10" },
@@ -86,7 +88,7 @@ export function KanbanView() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex-1">
             <h2 className="text-2xl font-bold text-slate-800 mb-1">Good morning, Alice ☀️</h2>
-            <p className="text-slate-500">You have 12 tasks to complete today.</p>
+            <p className="text-slate-500 italic">"The secret of getting ahead is getting started." — Mark Twain</p>
           </div>
           <button className="bg-teal-600 hover:bg-teal-700 text-white px-6 py-4 rounded-full font-medium flex items-center gap-2 shadow-sm whitespace-nowrap">
             <Plus className="w-5 h-5" /> New Task
@@ -151,9 +153,6 @@ export function KanbanView() {
               </div>
               <div className="space-y-3">
                 {tasks.todo.map(t => <KanbanCard key={t.id} task={t} />)}
-                <button className="w-full border-2 border-dashed border-slate-200 rounded-2xl py-3 text-sm text-slate-400 hover:border-teal-300 hover:text-teal-500 transition-colors flex items-center justify-center gap-2">
-                  <Plus className="w-4 h-4" /> Add task
-                </button>
               </div>
             </div>
 
@@ -171,9 +170,6 @@ export function KanbanView() {
               </div>
               <div className="space-y-3">
                 {tasks.inProgress.map(t => <KanbanCard key={t.id} task={t} />)}
-                <button className="w-full border-2 border-dashed border-slate-200 rounded-2xl py-3 text-sm text-slate-400 hover:border-teal-300 hover:text-teal-500 transition-colors flex items-center justify-center gap-2">
-                  <Plus className="w-4 h-4" /> Add task
-                </button>
               </div>
             </div>
 
