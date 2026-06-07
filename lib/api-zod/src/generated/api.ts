@@ -51,6 +51,7 @@ export const GetTasksResponseItem = zod.object({
   "classificationId": zod.number().nullish(),
   "classificationName": zod.string().nullish(),
   "groupId": zod.number().nullish(),
+  "assignedUserId": zod.number().nullish(),
   "title": zod.string(),
   "description": zod.string().nullish(),
   "priority": zod.enum(['LOW', 'MEDIUM', 'HIGH']),
@@ -93,6 +94,7 @@ export const GetTaskResponse = zod.object({
   "classificationId": zod.number().nullish(),
   "classificationName": zod.string().nullish(),
   "groupId": zod.number().nullish(),
+  "assignedUserId": zod.number().nullish(),
   "title": zod.string(),
   "description": zod.string().nullish(),
   "priority": zod.enum(['LOW', 'MEDIUM', 'HIGH']),
@@ -121,7 +123,8 @@ export const UpdateTaskBody = zod.object({
   "status": zod.enum(['TODO', 'IN_PROGRESS', 'DONE']).optional(),
   "deadline": zod.string().optional(),
   "classificationId": zod.number().nullish(),
-  "groupId": zod.number().nullish()
+  "groupId": zod.number().nullish(),
+  "assignedUserId": zod.number().nullish()
 })
 
 export const UpdateTaskResponse = zod.object({
@@ -130,6 +133,7 @@ export const UpdateTaskResponse = zod.object({
   "classificationId": zod.number().nullish(),
   "classificationName": zod.string().nullish(),
   "groupId": zod.number().nullish(),
+  "assignedUserId": zod.number().nullish(),
   "title": zod.string(),
   "description": zod.string().nullish(),
   "priority": zod.enum(['LOW', 'MEDIUM', 'HIGH']),
@@ -212,7 +216,8 @@ export const GetGroupsResponseItem = zod.object({
   "title": zod.string(),
   "status": zod.enum(['TODO', 'IN_PROGRESS', 'DONE']),
   "priority": zod.enum(['LOW', 'MEDIUM', 'HIGH']),
-  "assigneeName": zod.string().nullish()
+  "assigneeName": zod.string().nullish(),
+  "assignedUserId": zod.number().nullish()
 })),
   "notes": zod.array(zod.object({
   "id": zod.number(),
@@ -267,7 +272,8 @@ export const UpdateGroupResponse = zod.object({
   "title": zod.string(),
   "status": zod.enum(['TODO', 'IN_PROGRESS', 'DONE']),
   "priority": zod.enum(['LOW', 'MEDIUM', 'HIGH']),
-  "assigneeName": zod.string().nullish()
+  "assigneeName": zod.string().nullish(),
+  "assignedUserId": zod.number().nullish()
 })),
   "notes": zod.array(zod.object({
   "id": zod.number(),
@@ -316,7 +322,8 @@ export const AddGroupMemberResponse = zod.object({
   "title": zod.string(),
   "status": zod.enum(['TODO', 'IN_PROGRESS', 'DONE']),
   "priority": zod.enum(['LOW', 'MEDIUM', 'HIGH']),
-  "assigneeName": zod.string().nullish()
+  "assigneeName": zod.string().nullish(),
+  "assignedUserId": zod.number().nullish()
 })),
   "notes": zod.array(zod.object({
   "id": zod.number(),

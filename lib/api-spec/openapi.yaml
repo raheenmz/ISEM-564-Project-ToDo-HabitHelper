@@ -485,6 +485,8 @@ components:
           type: ["string", "null"]
         groupId:
           type: ["integer", "null"]
+        assignedUserId:
+          type: ["integer", "null"]
         title:
           type: string
         description:
@@ -557,6 +559,8 @@ components:
         classificationId:
           type: ["integer", "null"]
         groupId:
+          type: ["integer", "null"]
+        assignedUserId:
           type: ["integer", "null"]
 
     Classification:
@@ -642,6 +646,8 @@ components:
         assigneeName:
           type: string
           nullable: true
+        assignedUserId:
+          type: ["integer", "null"]
       required:
         - id
         - title

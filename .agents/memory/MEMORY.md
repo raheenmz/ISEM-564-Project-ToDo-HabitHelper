@@ -1,0 +1,2 @@
+- [Codegen restart rule](codegen-restart.md) — after any orval codegen run, must restart task-force Vite workflow or HMR breaks
+- [Group task editing pattern](group-task-editing.md) — TaskFormDialog accepts groupMembers prop to switch into group-edit mode

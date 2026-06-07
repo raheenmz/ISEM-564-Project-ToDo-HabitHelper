@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -16,7 +16,7 @@ import {
   getGetDashboardSummaryQueryKey,
   getGetGroupsQueryKey,
 } from "@workspace/api-client-react";
-import type { Task, Group } from "@workspace/api-client-react";
+import type { Task, Group, GroupMember } from "@workspace/api-client-react";
 import { useAuth } from "@/hooks/use-auth";
 import { TaskFormDialog } from "@/components/task-form-dialog";
 import { CreateGroupDialog } from "@/components/create-group-dialog";
@@ -230,13 +230,15 @@ function fmtDateTime(iso: string) {
 }
 
 /* ── Group card ── */
-function GroupCard({ group, currentUserId, onDelete, onEdit, onAddMember, onRemoveMember }: {
+function GroupCard({ group, currentUserId, allTasks, onDelete, onEdit, onAddMember, onRemoveMember, onEditGroupTask }: {
   group: Group;
   currentUserId: number;
+  allTasks: Task[];
   onDelete: (id: number) => void;
   onEdit: (group: Group) => void;
   onAddMember: (groupId: number, name: string) => void;
   onRemoveMember: (groupId: number, memberId: number) => void;
+  onEditGroupTask: (task: Task, members: GroupMember[]) => void;
 }) {
   const qc = useQueryClient();
   const [nameInput, setNameInput] = useState("");
@@ -244,13 +246,40 @@ function GroupCard({ group, currentUserId, onDelete, onEdit, onAddMember, onRemo
   const [noteAuthorId, setNoteAuthorId] = useState<number>(0);
   const [noteText, setNoteText] = useState("");
   const [postingNote, setPostingNote] = useState(false);
+  const notesEndRef = useRef<HTMLDivElement>(null);
 
   const createNote = useCreateGroupNote();
   const deleteNote = useDeleteGroupNote();
+  const updateGroupTask = useUpdateTask({
+    mutation: {
+      onSuccess: () => {
+        qc.invalidateQueries({ queryKey: getGetTasksQueryKey() });
+        qc.invalidateQueries({ queryKey: getGetGroupsQueryKey() });
+        qc.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+      },
+    },
+  });
 
   const isCreator = group.createdBy === currentUserId;
   const groupColor = group.color || "#14b8a6";
   const notes = group.notes ?? [];
+
+  const sortedNotes = [...notes].reverse();
+  const noteGroups: { authorId: number; authorName: string; items: typeof sortedNotes }[] = [];
+  sortedNotes.forEach((n) => {
+    const last = noteGroups[noteGroups.length - 1];
+    if (last && last.authorId === n.authorId) {
+      last.items.push(n);
+    } else {
+      noteGroups.push({ authorId: n.authorId, authorName: n.authorName, items: [n] });
+    }
+  });
+
+  useEffect(() => {
+    if (notesEndRef.current) {
+      notesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [notes.length]);
 
   const total = group.tasks.length;
   const done = group.tasks.filter((t) => t.status === "DONE").length;
@@ -392,15 +421,43 @@ function GroupCard({ group, currentUserId, onDelete, onEdit, onAddMember, onRemo
         ) : (
           <div className="space-y-1.5">
             {group.tasks.map((t) => (
-              <div key={t.id} className="flex items-center gap-2.5 py-2 px-3 bg-slate-50 rounded-xl">
+              <div key={t.id} className="flex items-center gap-2 py-2 px-3 bg-slate-50 rounded-xl group/task">
                 <PriorityPill priority={t.priority} />
                 <span className={`text-sm flex-1 min-w-0 truncate font-medium ${t.status === "DONE" ? "line-through text-slate-400" : "text-slate-700"}`}>
                   {t.title}
                 </span>
-                <StatusPill status={t.status} />
-                {t.assigneeName ? (
-                  <span className="text-xs text-slate-400 whitespace-nowrap shrink-0 hidden sm:block">{t.assigneeName}</span>
-                ) : null}
+                <span className="text-xs text-slate-400 whitespace-nowrap shrink-0 hidden sm:block">
+                  {t.assigneeName ? `→ ${t.assigneeName}` : "Unassigned"}
+                </span>
+                <select
+                  value={t.status}
+                  onChange={(e) => updateGroupTask.mutate({ id: t.id, data: { status: e.target.value as "TODO" | "IN_PROGRESS" | "DONE" } })}
+                  className="text-xs px-2 py-0.5 rounded-full font-medium border-0 focus:outline-none focus:ring-1 focus:ring-teal-400 cursor-pointer shrink-0"
+                  style={{
+                    backgroundColor:
+                      t.status === "DONE" ? "#f0fdf4" :
+                      t.status === "IN_PROGRESS" ? "#f0f9ff" :
+                      "#f1f5f9",
+                    color:
+                      t.status === "DONE" ? "#4d7c0f" :
+                      t.status === "IN_PROGRESS" ? "#0369a1" :
+                      "#475569",
+                  }}
+                >
+                  <option value="TODO">To Do</option>
+                  <option value="IN_PROGRESS">In Progress</option>
+                  <option value="DONE">Done</option>
+                </select>
+                <button
+                  onClick={() => {
+                    const full = allTasks.find((at) => at.id === t.id);
+                    if (full) onEditGroupTask(full, group.members as GroupMember[]);
+                  }}
+                  className="opacity-0 group-hover/task:opacity-100 transition-opacity text-slate-300 hover:text-teal-500 p-1 rounded-lg hover:bg-teal-50 shrink-0"
+                  title="Edit task"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </button>
               </div>
             ))}
           </div>
@@ -438,10 +495,55 @@ function GroupCard({ group, currentUserId, onDelete, onEdit, onAddMember, onRemo
         </div>
       </div>
 
-      {/* Notes */}
+      {/* Discussion board */}
       <div className="space-y-3">
-        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Notes</p>
-        <div className="flex gap-2 items-start">
+        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Discussion</p>
+
+        {/* Message feed — oldest at top, newest at bottom */}
+        {sortedNotes.length === 0 ? (
+          <p className="text-xs text-slate-300 italic py-2 text-center">No messages yet — start the conversation</p>
+        ) : (
+          <div className="max-h-60 overflow-y-auto flex flex-col gap-3 pr-1">
+            {noteGroups.map((grp, gi) => (
+              <div key={`${grp.authorId}-${gi}`} className="flex gap-2.5 items-start">
+                <div
+                  className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0 mt-0.5"
+                  style={{ backgroundColor: groupColor }}
+                >
+                  {grp.authorName.charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className="text-xs font-semibold text-slate-700">{grp.authorName}</span>
+                    <span className="text-[10px] text-slate-400">{fmtDateTime(grp.items[0].createdAt)}</span>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    {grp.items.map((n) => (
+                      <div key={n.id} className="group/msg flex items-start gap-1.5">
+                        <p className="flex-1 text-sm text-slate-600 leading-relaxed break-words bg-slate-50 rounded-2xl rounded-tl-sm px-3 py-2">
+                          {n.noteText}
+                        </p>
+                        {(n.authorId === currentUserId || isCreator) && (
+                          <button
+                            onClick={() => handleDeleteNote(n.id)}
+                            className="opacity-0 group-hover/msg:opacity-100 transition-opacity text-slate-300 hover:text-red-400 mt-2 shrink-0"
+                            title="Delete message"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+            <div ref={notesEndRef} />
+          </div>
+        )}
+
+        {/* Input area — always at bottom */}
+        <div className="flex gap-2 items-end pt-1 border-t border-slate-100">
           <select
             value={selectedAuthorId}
             onChange={(e) => setNoteAuthorId(Number(e.target.value))}
@@ -454,7 +556,8 @@ function GroupCard({ group, currentUserId, onDelete, onEdit, onAddMember, onRemo
           <textarea
             value={noteText}
             onChange={(e) => setNoteText(e.target.value)}
-            placeholder="Type a note…"
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handlePostNote(); } }}
+            placeholder="Type a message… (Enter to send)"
             rows={2}
             className="flex-1 text-sm px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition placeholder:text-slate-300 resize-none"
           />
@@ -466,42 +569,10 @@ function GroupCard({ group, currentUserId, onDelete, onEdit, onAddMember, onRemo
             {postingNote ? (
               <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
             ) : (
-              <><MessageSquare className="w-3.5 h-3.5" /> Post</>
+              <><MessageSquare className="w-3.5 h-3.5" /> Send</>
             )}
           </button>
         </div>
-        {notes.length === 0 ? (
-          <p className="text-xs text-slate-300 italic py-1">No notes yet — be the first to leave one</p>
-        ) : (
-          <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-            {notes.map((n) => (
-              <div key={n.id} className="bg-slate-50 rounded-2xl px-4 py-3 flex gap-3 items-start">
-                <div
-                  className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0 mt-0.5"
-                  style={{ backgroundColor: groupColor }}
-                >
-                  {n.authorName.charAt(0).toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-semibold text-slate-700">{n.authorName}</span>
-                    <span className="text-[10px] text-slate-400">{fmtDateTime(n.createdAt)}</span>
-                  </div>
-                  <p className="text-sm text-slate-600 leading-relaxed break-words">{n.noteText}</p>
-                </div>
-                {(n.authorId === currentUserId || isCreator) && (
-                  <button
-                    onClick={() => handleDeleteNote(n.id)}
-                    className="text-slate-300 hover:text-red-400 transition-colors flex-shrink-0 mt-0.5"
-                    title="Delete note"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );
@@ -520,6 +591,9 @@ export default function Dashboard() {
   const [deletingTask, setDeletingTask] = useState<Task | null>(null);
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<Group | null>(null);
+  const [groupTaskFormOpen, setGroupTaskFormOpen] = useState(false);
+  const [editingGroupTask, setEditingGroupTask] = useState<Task | null>(null);
+  const [editingGroupTaskMembers, setEditingGroupTaskMembers] = useState<GroupMember[]>([]);
   const [overdueBannerDismissed, setOverdueBannerDismissed] = useState(false);
   const [statusFilter, setStatusFilter] = useState<"ALL" | "TODO" | "IN_PROGRESS" | "DONE" | "OVERDUE">("ALL");
 
@@ -607,6 +681,12 @@ export default function Dashboard() {
   function handleEditGroup(group: Group) {
     setEditingGroup(group);
     setCreateGroupOpen(true);
+  }
+
+  function handleEditGroupTask(task: Task, members: GroupMember[]) {
+    setEditingGroupTask(task);
+    setEditingGroupTaskMembers(members);
+    setGroupTaskFormOpen(true);
   }
 
   function handleAddMember(groupId: number, memberName: string) {
@@ -948,10 +1028,12 @@ export default function Dashboard() {
                     key={g.id}
                     group={g}
                     currentUserId={user.id}
+                    allTasks={allTasks}
                     onDelete={handleDeleteGroup}
                     onEdit={handleEditGroup}
                     onAddMember={handleAddMember}
                     onRemoveMember={handleRemoveMember}
+                    onEditGroupTask={handleEditGroupTask}
                   />
                 ))}
               </div>
@@ -965,6 +1047,14 @@ export default function Dashboard() {
         open={taskFormOpen}
         onClose={() => { setTaskFormOpen(false); setEditingTask(null); }}
         editTask={editingTask}
+      />
+
+      {/* Group Task Edit Form */}
+      <TaskFormDialog
+        open={groupTaskFormOpen}
+        onClose={() => { setGroupTaskFormOpen(false); setEditingGroupTask(null); setEditingGroupTaskMembers([]); }}
+        editTask={editingGroupTask}
+        groupMembers={editingGroupTaskMembers}
       />
 
       {/* Create / Edit Group Modal */}

@@ -36,6 +36,7 @@ interface TaskFormDialogProps {
   open: boolean;
   onClose: () => void;
   editTask?: Task | null;
+  groupMembers?: { userId: number; name: string }[];
 }
 
 const PRIORITY_OPTIONS = [
@@ -53,8 +54,9 @@ const STATUS_OPTIONS = [
 const NO_CATEGORY = "__none__";
 const ADD_CATEGORY = "__new__";
 const NO_GROUP = "__none__";
+const NO_ASSIGNEE = "__none__";
 
-export function TaskFormDialog({ open, onClose, editTask }: TaskFormDialogProps) {
+export function TaskFormDialog({ open, onClose, editTask, groupMembers }: TaskFormDialogProps) {
   const qc = useQueryClient();
 
   const [title, setTitle] = useState("");
@@ -66,6 +68,7 @@ export function TaskFormDialog({ open, onClose, editTask }: TaskFormDialogProps)
   const [groupId, setGroupId] = useState<string>("");
   const [newClassifName, setNewClassifName] = useState("");
   const [showNewClassif, setShowNewClassif] = useState(false);
+  const [assignedUserId, setAssignedUserId] = useState<string>("");
   const [formError, setFormError] = useState("");
 
   const { data: classifications = [] } = useGetClassifications();
@@ -131,6 +134,7 @@ export function TaskFormDialog({ open, onClose, editTask }: TaskFormDialogProps)
         setDeadline(editTask.deadline ?? "");
         setClassificationId(editTask.classificationId ? String(editTask.classificationId) : "");
         setGroupId(editTask.groupId ? String(editTask.groupId) : "");
+        setAssignedUserId(editTask.assignedUserId ? String(editTask.assignedUserId) : "");
       } else {
         setTitle("");
         setDescription("");
@@ -139,6 +143,7 @@ export function TaskFormDialog({ open, onClose, editTask }: TaskFormDialogProps)
         setDeadline("");
         setClassificationId("");
         setGroupId("");
+        setAssignedUserId("");
       }
       setNewClassifName("");
       setShowNewClassif(false);
@@ -191,7 +196,11 @@ export function TaskFormDialog({ open, onClose, editTask }: TaskFormDialogProps)
     if (editTask) {
       updateTask.mutate({
         id: editTask.id,
-        data: { ...base, groupId: groupId ? Number(groupId) : null },
+        data: {
+          ...base,
+          groupId: groupId ? Number(groupId) : null,
+          assignedUserId: assignedUserId ? Number(assignedUserId) : null,
+        },
       });
     } else {
       createTask.mutate({
@@ -300,25 +309,48 @@ export function TaskFormDialog({ open, onClose, editTask }: TaskFormDialogProps)
             </div>
           </div>
 
-          {/* Group assignment */}
-          <div className="space-y-1.5">
-            <Label>Assign to Group</Label>
-            <Select value={groupSelectValue} onValueChange={handleGroupChange}>
-              <SelectTrigger>
-                <SelectValue placeholder="No group" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={NO_GROUP}>No group</SelectItem>
-                {allGroups.length === 0 ? (
-                  <div className="px-3 py-2 text-xs text-muted-foreground">No groups created yet</div>
-                ) : (
-                  allGroups.map((g) => (
-                    <SelectItem key={g.id} value={String(g.id)}>{g.name}</SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
-          </div>
+          {/* Group assignment — hidden in group context */}
+          {!groupMembers && (
+            <div className="space-y-1.5">
+              <Label>Assign to Group</Label>
+              <Select value={groupSelectValue} onValueChange={handleGroupChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="No group" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_GROUP}>No group</SelectItem>
+                  {allGroups.length === 0 ? (
+                    <div className="px-3 py-2 text-xs text-muted-foreground">No groups created yet</div>
+                  ) : (
+                    allGroups.map((g) => (
+                      <SelectItem key={g.id} value={String(g.id)}>{g.name}</SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Assign to member — only in group context */}
+          {groupMembers && groupMembers.length > 0 && (
+            <div className="space-y-1.5">
+              <Label>Assigned to</Label>
+              <Select
+                value={assignedUserId || NO_ASSIGNEE}
+                onValueChange={(v) => setAssignedUserId(v === NO_ASSIGNEE ? "" : v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Unassigned" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_ASSIGNEE}>Unassigned</SelectItem>
+                  {groupMembers.map((m) => (
+                    <SelectItem key={m.userId} value={String(m.userId)}>{m.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {showNewClassif && (
             <div className="flex gap-2 items-end">

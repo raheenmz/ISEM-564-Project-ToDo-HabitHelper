@@ -24,7 +24,6 @@ async function getGroupWithDetails(groupId: number) {
     .innerJoin(usersTable, eq(groupMembersTable.userId, usersTable.id))
     .where(eq(groupMembersTable.groupId, groupId));
 
-  const assigneeAlias = usersTable;
   const tasks = await db
     .select({
       id: tasksTable.id,
@@ -32,6 +31,7 @@ async function getGroupWithDetails(groupId: number) {
       status: tasksTable.status,
       priority: tasksTable.priority,
       assigneeName: usersTable.name,
+      assignedUserId: tasksTable.assignedUserId,
     })
     .from(tasksTable)
     .leftJoin(usersTable, eq(tasksTable.assignedUserId, usersTable.id))

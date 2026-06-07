@@ -47,6 +47,8 @@ export interface Task {
   classificationName?: string | null;
   /** @nullable */
   groupId?: number | null;
+  /** @nullable */
+  assignedUserId?: number | null;
   title: string;
   /** @nullable */
   description?: string | null;
@@ -117,6 +119,8 @@ export interface TaskUpdate {
   classificationId?: number | null;
   /** @nullable */
   groupId?: number | null;
+  /** @nullable */
+  assignedUserId?: number | null;
 }
 
 export type ClassificationType = typeof ClassificationType[keyof typeof ClassificationType];
@@ -179,6 +183,8 @@ export interface GroupTask {
   status: GroupTaskStatus;
   priority: GroupTaskPriority;
   assigneeName?: string | null;
+  /** @nullable */
+  assignedUserId?: number | null;
 }
 
 export interface GroupNote {

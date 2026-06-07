@@ -19,4 +19,6 @@ export interface TaskUpdate {
   classificationId?: number | null;
   /** @nullable */
   groupId?: number | null;
+  /** @nullable */
+  assignedUserId?: number | null;
 }
