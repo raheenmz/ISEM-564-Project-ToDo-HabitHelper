@@ -230,14 +230,20 @@ router.put("/tasks/:id", requireAuth, async (req, res): Promise<void> => {
     }
   }
 
-  const updateData: Record<string, unknown> = { ...parsed.data };
-  if ("classificationId" in parsed.data && parsed.data.classificationId === undefined) {
-    delete updateData.classificationId;
-  }
+  const d = parsed.data;
+  const updateValues: Partial<typeof tasksTable.$inferInsert> = {};
+  if (d.title !== undefined)       updateValues.title            = d.title;
+  if (d.description !== undefined) updateValues.description      = d.description ?? null;
+  if (d.priority !== undefined)    updateValues.priority         = d.priority;
+  if (d.status !== undefined)      updateValues.status           = d.status;
+  if (d.deadline !== undefined)    updateValues.deadline         = d.deadline ?? null;
+  if ("classificationId" in d)     updateValues.classificationId = d.classificationId ?? null;
+  if ("groupId" in d)              updateValues.groupId          = d.groupId ?? null;
+  if ("assignedUserId" in d)       updateValues.assignedUserId   = d.assignedUserId ?? null;
 
   const [updated] = await db
     .update(tasksTable)
-    .set(updateData)
+    .set(updateValues)
     .where(and(eq(tasksTable.id, params.data.id), eq(tasksTable.userId, userId)))
     .returning();
 
