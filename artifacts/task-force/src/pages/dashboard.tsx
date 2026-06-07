@@ -224,15 +224,19 @@ function GroupCard({ group, currentUserId, onDelete, onAddMember, onRemoveMember
   onAddMember: (groupId: number, name: string) => void;
   onRemoveMember: (groupId: number, memberId: number) => void;
 }) {
-  const [memberInput, setMemberInput] = useState("");
+  const [nameInput, setNameInput] = useState("");
+  const [emailInput, setEmailInput] = useState("");
   const [memberError, setMemberError] = useState("");
 
   function handleAdd() {
-    const name = memberInput.trim();
-    if (!name) return;
+    const email = emailInput.trim();
+    const name = nameInput.trim();
+    const query = email || name;
+    if (!query) return;
     setMemberError("");
-    onAddMember(group.id, name);
-    setMemberInput("");
+    onAddMember(group.id, query);
+    setNameInput("");
+    setEmailInput("");
   }
 
   const isCreator = group.createdBy === currentUserId;
@@ -284,22 +288,31 @@ function GroupCard({ group, currentUserId, onDelete, onAddMember, onRemoveMember
           ))}
         </div>
 
-        {/* Add member input */}
-        <div className="flex gap-2 mt-1">
-          <input
-            value={memberInput}
-            onChange={(e) => setMemberInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAdd(); }}}
-            placeholder="Add member by username…"
-            className="flex-1 text-sm px-3 py-1.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition placeholder:text-slate-300"
-          />
-          <button
-            onClick={handleAdd}
-            disabled={!memberInput.trim()}
-            className="flex items-center gap-1 bg-teal-50 hover:bg-teal-100 text-teal-700 text-xs font-medium px-3 py-1.5 rounded-xl transition-colors disabled:opacity-40"
-          >
-            <UserPlus className="w-3.5 h-3.5" /> Add
-          </button>
+        {/* Add member inputs */}
+        <div className="space-y-1.5 mt-1">
+          <div className="flex gap-2">
+            <input
+              value={nameInput}
+              onChange={(e) => setNameInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAdd(); }}}
+              placeholder="Name…"
+              className="flex-1 text-sm px-3 py-1.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition placeholder:text-slate-300"
+            />
+            <input
+              value={emailInput}
+              onChange={(e) => setEmailInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAdd(); }}}
+              placeholder="Email…"
+              className="flex-1 text-sm px-3 py-1.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition placeholder:text-slate-300"
+            />
+            <button
+              onClick={handleAdd}
+              disabled={!nameInput.trim() && !emailInput.trim()}
+              className="flex items-center gap-1 bg-teal-50 hover:bg-teal-100 text-teal-700 text-xs font-medium px-3 py-1.5 rounded-xl transition-colors disabled:opacity-40 whitespace-nowrap"
+            >
+              <UserPlus className="w-3.5 h-3.5" /> Add
+            </button>
+          </div>
         </div>
         {memberError && <p className="text-xs text-red-500">{memberError}</p>}
       </div>

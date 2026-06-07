@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, or } from "drizzle-orm";
 import { db, groupsTable, groupMembersTable, usersTable, tasksTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
 
@@ -159,10 +159,15 @@ router.post("/groups/:id/members", requireAuth, async (req, res): Promise<void> 
     return;
   }
 
+  const isEmail = memberName.includes("@");
   const [targetUser] = await db
     .select()
     .from(usersTable)
-    .where(eq(usersTable.name, memberName));
+    .where(
+      isEmail
+        ? eq(usersTable.email, memberName)
+        : or(eq(usersTable.name, memberName), eq(usersTable.email, memberName))!
+    );
 
   if (!targetUser) {
     res.status(404).json({ error: `User "${memberName}" not found` });
