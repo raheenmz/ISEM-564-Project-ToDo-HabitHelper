@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  AlertTriangle,
   Bot,
   CalendarDays,
   CheckCircle2,
@@ -365,6 +366,8 @@ export default function Dashboard() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [deletingTask, setDeletingTask] = useState<Task | null>(null);
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
+  const [overdueBannerDismissed, setOverdueBannerDismissed] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<"ALL" | "TODO" | "IN_PROGRESS" | "DONE" | "OVERDUE">("ALL");
 
   const { data: tasks = [], isLoading: tasksLoading } = useGetTasks();
   const { data: summary } = useGetDashboardSummary();
@@ -417,7 +420,13 @@ export default function Dashboard() {
   const todoTasks       = useMemo(() => sortTasks(allTasks.filter((t) => t.status === "TODO")), [allTasks]);
   const inProgressTasks = useMemo(() => sortTasks(allTasks.filter((t) => t.status === "IN_PROGRESS")), [allTasks]);
   const doneTasks       = useMemo(() => sortTasks(allTasks.filter((t) => t.status === "DONE")), [allTasks]);
+  const overdueTasks    = useMemo(() => sortTasks(allTasks.filter((t) => t.isOverdue)), [allTasks]);
   const sortedTasks     = useMemo(() => sortTasks(allTasks), [allTasks]);
+  const filteredTasks   = useMemo(() => {
+    if (statusFilter === "ALL") return sortedTasks;
+    if (statusFilter === "OVERDUE") return overdueTasks;
+    return sortTasks(allTasks.filter((t) => t.status === statusFilter));
+  }, [statusFilter, sortedTasks, overdueTasks, allTasks]);
 
   useEffect(() => {
     if (!authLoading && !user) setLocation("/login");
@@ -514,11 +523,35 @@ export default function Dashboard() {
           </button>
         </div>
 
+        {/* ── Overdue Alert Banner ── */}
+        {!overdueBannerDismissed && overdueTasks.length > 0 && (
+          <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl px-5 py-3.5 shadow-sm">
+            <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <span className="font-semibold">{overdueTasks.length} overdue task{overdueTasks.length !== 1 ? "s" : ""}</span>
+              <span className="text-amber-700 ml-1.5 text-sm">— these tasks are past their deadline and still open.</span>
+            </div>
+            <button
+              onClick={() => { setStatusFilter("OVERDUE"); setActiveSection("tasks"); }}
+              className="text-xs font-semibold bg-amber-100 hover:bg-amber-200 text-amber-800 px-3 py-1.5 rounded-full transition-colors whitespace-nowrap shrink-0"
+            >
+              View overdue
+            </button>
+            <button
+              onClick={() => setOverdueBannerDismissed(true)}
+              className="text-amber-400 hover:text-amber-700 transition-colors shrink-0 ml-1"
+              title="Dismiss"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
         {/* ════ TASKS SECTION ════ */}
         {activeSection === "tasks" && (
           <>
             {/* Stat Tiles */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
               <StatTile label="Total" value={summary?.totalTasks ?? allTasks.length}
                 bg="bg-teal-100" textColor="text-teal-900"
                 icon={<ListTodo className="w-5 h-5 text-teal-800" />} />
@@ -531,6 +564,9 @@ export default function Dashboard() {
               <StatTile label="Done" value={summary?.doneCount ?? doneTasks.length}
                 bg="bg-lime-100" textColor="text-lime-900"
                 icon={<CheckCircle2 className="w-5 h-5 text-lime-800" />} />
+              <StatTile label="Overdue" value={overdueTasks.length}
+                bg="bg-amber-100" textColor="text-amber-900"
+                icon={<AlertTriangle className="w-5 h-5 text-amber-800" />} />
             </div>
 
             {/* Today's Focus */}
@@ -559,9 +595,40 @@ export default function Dashboard() {
 
             {/* All Tasks */}
             <section className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="font-semibold text-slate-800 text-base">All Tasks</h2>
-                <div className="flex items-center gap-1 bg-white p-1 rounded-full shadow-sm border border-slate-100">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="font-semibold text-slate-800 text-base">All Tasks</h2>
+                  {/* Filter chips */}
+                  <div className="flex items-center gap-1 flex-wrap">
+                    {(["ALL", "TODO", "IN_PROGRESS", "DONE", "OVERDUE"] as const).map((f) => {
+                      const labels: Record<typeof f, string> = { ALL: "All", TODO: "To Do", IN_PROGRESS: "In Progress", DONE: "Done", OVERDUE: "Overdue" };
+                      const active = statusFilter === f;
+                      const isOverdue = f === "OVERDUE";
+                      return (
+                        <button
+                          key={f}
+                          onClick={() => setStatusFilter(f)}
+                          className={`text-xs px-3 py-1 rounded-full font-medium transition-colors flex items-center gap-1 ${
+                            active
+                              ? isOverdue
+                                ? "bg-amber-500 text-white"
+                                : "bg-teal-600 text-white"
+                              : isOverdue
+                              ? "bg-amber-50 text-amber-700 hover:bg-amber-100"
+                              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                          }`}
+                        >
+                          {isOverdue && <AlertTriangle className="w-3 h-3" />}
+                          {labels[f]}
+                          {isOverdue && overdueTasks.length > 0 && (
+                            <span className={`ml-0.5 font-bold ${active ? "text-white" : "text-amber-600"}`}>{overdueTasks.length}</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 bg-white p-1 rounded-full shadow-sm border border-slate-100 shrink-0">
                   <button
                     onClick={() => setActiveTab("list")}
                     className={`px-4 py-1.5 rounded-full text-sm font-medium flex items-center gap-1.5 transition-colors ${activeTab === "list" ? "bg-teal-50 text-teal-700" : "text-slate-500 hover:text-slate-700"}`}
@@ -581,14 +648,20 @@ export default function Dashboard() {
               {activeTab === "list" && (
                 tasksLoading ? (
                   <div className="space-y-2">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-12 w-full rounded-xl" />)}</div>
-                ) : sortedTasks.length === 0 ? (
+                ) : filteredTasks.length === 0 ? (
                   <div className="text-center py-16 bg-white rounded-3xl border border-slate-100 shadow-sm">
-                    <p className="text-4xl mb-3">📋</p>
-                    <p className="font-medium text-slate-700">No tasks yet</p>
-                    <p className="text-sm text-slate-400 mt-1">Create your first task to get started</p>
-                    <button onClick={openCreate} className="mt-4 bg-teal-600 hover:bg-teal-700 text-white px-5 py-2 rounded-full text-sm font-medium transition-colors">
-                      Create a task
-                    </button>
+                    <p className="text-4xl mb-3">{statusFilter === "OVERDUE" ? "✅" : "📋"}</p>
+                    <p className="font-medium text-slate-700">
+                      {statusFilter === "OVERDUE" ? "No overdue tasks" : statusFilter === "ALL" ? "No tasks yet" : `No ${STATUS_LABELS[statusFilter] ?? statusFilter} tasks`}
+                    </p>
+                    <p className="text-sm text-slate-400 mt-1">
+                      {statusFilter === "OVERDUE" ? "You're all caught up!" : statusFilter === "ALL" ? "Create your first task to get started" : ""}
+                    </p>
+                    {statusFilter === "ALL" && (
+                      <button onClick={openCreate} className="mt-4 bg-teal-600 hover:bg-teal-700 text-white px-5 py-2 rounded-full text-sm font-medium transition-colors">
+                        Create a task
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <div className="bg-white rounded-3xl shadow-sm overflow-hidden border border-slate-100">
@@ -605,7 +678,7 @@ export default function Dashboard() {
                         </tr>
                       </thead>
                       <tbody>
-                        {sortedTasks.map((t) => (
+                        {filteredTasks.map((t) => (
                           <tr key={t.id} className={`border-b border-slate-50 last:border-0 group hover:bg-slate-50/50 transition-colors ${t.status === "DONE" ? "opacity-60" : ""}`}>
                             <td className="px-5 py-3.5">
                               <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${t.status === "DONE" ? "bg-teal-500 border-teal-500" : "border-slate-300 group-hover:border-teal-400"}`}>
@@ -654,9 +727,9 @@ export default function Dashboard() {
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     {[
-                      { status: "TODO",        label: "To Do",       tasks: todoTasks,       dot: "bg-orange-400", count: "bg-orange-100 text-orange-700" },
-                      { status: "IN_PROGRESS", label: "In Progress", tasks: inProgressTasks, dot: "bg-sky-400",    count: "bg-sky-100 text-sky-700"    },
-                      { status: "DONE",        label: "Done",        tasks: doneTasks,       dot: "bg-lime-500",   count: "bg-lime-100 text-lime-700"   },
+                      { status: "TODO",        label: "To Do",       tasks: (statusFilter === "ALL" ? todoTasks : filteredTasks.filter(t => t.status === "TODO")),             dot: "bg-orange-400", count: "bg-orange-100 text-orange-700" },
+                      { status: "IN_PROGRESS", label: "In Progress", tasks: (statusFilter === "ALL" ? inProgressTasks : filteredTasks.filter(t => t.status === "IN_PROGRESS")), dot: "bg-sky-400",    count: "bg-sky-100 text-sky-700"    },
+                      { status: "DONE",        label: "Done",        tasks: (statusFilter === "ALL" ? doneTasks : filteredTasks.filter(t => t.status === "DONE")),             dot: "bg-lime-500",   count: "bg-lime-100 text-lime-700"   },
                     ].map((col) => (
                       <div key={col.status} className="space-y-3">
                         <div className="flex items-center gap-2 px-1">
