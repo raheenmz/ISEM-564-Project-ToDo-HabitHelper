@@ -805,18 +805,10 @@ export default function Dashboard() {
       <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-6 space-y-6">
 
         {/* ── Greeting + Quote ── */}
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="bg-white rounded-2xl px-6 py-5 shadow-sm border border-slate-100 flex-1">
             <h2 className="text-2xl font-bold text-slate-800 mb-1">Hey there, {user.name} 👋</h2>
             <p className="text-slate-500 italic text-sm">"{quote}"</p>
-          </div>
-          <div className="sm:w-72 flex-shrink-0">
-            <HabitDashboardWidget
-              completedHabits={completedHabitsToday}
-              totalHabits={totalHabitsToday}
-              currentStreak={habitStreak}
-              onClick={() => setActiveSection("habits")}
-            />
           </div>
           <button
             onClick={openCreate}
