@@ -8,9 +8,9 @@ const STREAK_MILESTONES = [3, 7, 14, 30, 100];
 
 const PROGRESS_MESSAGES: Record<HelperState, string> = {
   idle:        "Let's get started today.",
-  starting:    "Great start! Keep going.",
+  starting:    "Nice start! Keep it going.",
   halfway:     "You're halfway there.",
-  almost:      "Almost done! Finish strong.",
+  almost:      "Almost done!",
   celebrating: "Fantastic! All habits completed today!",
   excited:     "You're on fire! Keep the streak alive!",
   concerned:   "No pressure — just pick one habit to start with.",

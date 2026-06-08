@@ -660,23 +660,16 @@ export function HabitsTab({ onToast }: HabitsTabProps) {
   const handleToggleHabitComplete = useCallback(async (habitId: number) => {
     const task = allTasks.find((t) => t.habitId === habitId && t.deadline === today);
     if (!task) return;
-    const cycle: Record<string, "TODO" | "IN_PROGRESS" | "DONE"> = {
-      "TODO": "IN_PROGRESS",
-      "IN_PROGRESS": "DONE",
-      "DONE": "TODO",
-    };
-    const newStatus = cycle[task.status] ?? "TODO";
-    if (newStatus === "DONE") {
-      setCompletingHabitIds((prev) => new Set(prev).add(habitId));
-      setTimeout(() => {
-        setCompletingHabitIds((prev) => {
-          const next = new Set(prev);
-          next.delete(habitId);
-          return next;
-        });
-      }, 900);
-    }
-    await updateTask.mutateAsync({ id: task.id, data: { status: newStatus } });
+    if (task.status === "DONE") return;
+    setCompletingHabitIds((prev) => new Set(prev).add(habitId));
+    setTimeout(() => {
+      setCompletingHabitIds((prev) => {
+        const next = new Set(prev);
+        next.delete(habitId);
+        return next;
+      });
+    }, 900);
+    await updateTask.mutateAsync({ id: task.id, data: { status: "DONE" } });
   }, [allTasks, today, updateTask]);
 
   async function handleGenerate() {
@@ -801,56 +794,14 @@ export function HabitsTab({ onToast }: HabitsTabProps) {
                 <FloatingSuccess visible={isCompleting} />
 
                 <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-start gap-2.5 flex-1 min-w-0">
-                    {/* 3-state completion toggle: Not Started → In Progress → Complete → Not Started */}
-                    {hasTodayTask && habit.isActive && (
-                      <motion.button
-                        onClick={() => handleToggleHabitComplete(habit.id)}
-                        className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
-                          todayTask?.status === "DONE"
-                            ? "bg-teal-500 border-teal-500 text-white"
-                            : todayTask?.status === "IN_PROGRESS"
-                            ? "bg-sky-200 border-sky-400"
-                            : "border-slate-300 hover:border-teal-400"
-                        }`}
-                        whileTap={{ scale: 0.85 }}
-                        animate={isDone ? { scale: [1, 1.25, 1] } : { scale: 1 }}
-                        transition={{ duration: 0.3 }}
-                        title={
-                          todayTask?.status === "DONE"        ? "Complete — click to reset"
-                          : todayTask?.status === "IN_PROGRESS" ? "In Progress — click to complete"
-                          : "Not Started — click to start"
-                        }
-                      >
-                        <AnimatePresence mode="wait">
-                          {todayTask?.status === "DONE" && (
-                            <motion.svg key="check" width="10" height="10" viewBox="0 0 10 10"
-                              initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-                              exit={{ scale: 0, opacity: 0 }} transition={{ duration: 0.2 }}
-                            >
-                              <polyline points="1.5,5.5 4,8 8.5,2" stroke="white" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                            </motion.svg>
-                          )}
-                          {todayTask?.status === "IN_PROGRESS" && (
-                            <motion.div key="dash" className="w-2 h-0.5 rounded-full bg-sky-600"
-                              initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-                              exit={{ scale: 0, opacity: 0 }} transition={{ duration: 0.15 }}
-                            />
-                          )}
-                        </AnimatePresence>
-                      </motion.button>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${habit.isActive ? "bg-teal-400" : "bg-slate-300"}`} />
-                        <h4 className={`font-semibold text-sm leading-snug ${isDone ? "line-through text-slate-400" : "text-slate-800"}`}>
-                          {habit.title}
-                        </h4>
-                      </div>
-                      {habit.description && (
-                        <p className="text-xs text-slate-400 leading-relaxed line-clamp-2">{habit.description}</p>
-                      )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${habit.isActive ? "bg-teal-400" : "bg-slate-300"}`} />
+                      <h4 className="font-semibold text-sm leading-snug text-slate-800">{habit.title}</h4>
                     </div>
+                    {habit.description && (
+                      <p className="text-xs text-slate-400 leading-relaxed line-clamp-2">{habit.description}</p>
+                    )}
                   </div>
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                     <button
@@ -881,25 +832,54 @@ export function HabitsTab({ onToast }: HabitsTabProps) {
                   <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${habit.isActive ? "bg-teal-50 text-teal-700" : "bg-slate-100 text-slate-500"}`}>
                     {habit.isActive ? "Active" : "Paused"}
                   </span>
-                  {/* Habit status badge */}
-                  {hasTodayTask && habit.isActive && (
-                    <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${
-                      todayTask?.status === "DONE"        ? "bg-teal-100 text-teal-700"
-                      : todayTask?.status === "IN_PROGRESS" ? "bg-sky-100 text-sky-700"
-                      : "bg-slate-100 text-slate-500"
-                    }`}>
-                      {todayTask?.status === "DONE" ? "✓ Complete"
-                        : todayTask?.status === "IN_PROGRESS" ? "In Progress"
-                        : "Not Started"}
-                    </span>
-                  )}
-                  {!hasTodayTask && habit.isActive && (
-                    <span className="text-xs text-slate-400 italic">Generate tasks to track today</span>
-                  )}
                   <span className="text-xs text-slate-400 flex items-center gap-1 ml-auto">
                     <CalendarDays className="w-3 h-3" /> since {habit.startDate}
                   </span>
                 </div>
+
+                {/* Mark Complete button */}
+                {habit.isActive && hasTodayTask && (
+                  <AnimatePresence mode="wait">
+                    {isDone ? (
+                      <motion.div
+                        key="done"
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        transition={{ duration: 0.3 }}
+                        className="w-full flex items-center justify-center gap-2 bg-teal-500 text-white text-sm font-semibold py-2.5 rounded-xl cursor-default"
+                      >
+                        <motion.svg
+                          width="16" height="16" viewBox="0 0 16 16"
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          transition={{ type: "spring", stiffness: 400, damping: 20, delay: 0.1 }}
+                        >
+                          <polyline points="2,9 6,13 14,4" stroke="white" strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                        </motion.svg>
+                        Completed Today
+                      </motion.div>
+                    ) : (
+                      <motion.button
+                        key="mark"
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        transition={{ duration: 0.2 }}
+                        onClick={() => handleToggleHabitComplete(habit.id)}
+                        className="w-full flex items-center justify-center gap-2 bg-slate-50 hover:bg-teal-50 border border-slate-200 hover:border-teal-300 text-slate-600 hover:text-teal-700 text-sm font-semibold py-2.5 rounded-xl transition-colors"
+                        whileHover={{ scale: 1.01 }}
+                        whileTap={{ scale: 0.97 }}
+                      >
+                        <CheckSquare className="w-4 h-4" />
+                        Mark Complete
+                      </motion.button>
+                    )}
+                  </AnimatePresence>
+                )}
+                {habit.isActive && !hasTodayTask && (
+                  <p className="text-xs text-center text-slate-400 py-1">Generating today's task…</p>
+                )}
               </motion.div>
             );
           })}

@@ -1,0 +1,164 @@
+Enhance the existing **My Habits** feature to support habit completion tracking and integration with the Habit Helper.
+
+## Goal
+
+Each habit should have a daily completion status so the Habit Helper can track progress and display completion percentages.
+
+Keep the implementation simple.
+
+---
+
+## Current Behavior
+
+Users can create and view habits.
+
+---
+
+## New Requirements
+
+### Add Habit Status
+
+Each habit should have a status for the current day.
+
+Status values:
+
+* Not Completed
+* Completed
+
+Default status:
+
+* Not Completed
+
+---
+
+## Habit Card Changes
+
+On the My Habits page, each habit card should display:
+
+* Title
+* Description
+* Priority
+* Classification
+* Status
+
+Add a prominent button:
+
+"✓ Mark Complete"
+
+When clicked:
+
+* Status changes to Completed
+* Card updates immediately
+* Progress recalculates automatically
+* Habit Helper updates automatically
+
+If already completed:
+
+Display:
+
+```text
+✓ Completed Today
+```
+
+Disable the button to prevent multiple completions.
+
+---
+
+## Dashboard Progress Calculation
+
+Calculate progress using:
+
+```text
+Completed Habits ÷ Total Active Habits × 100
+```
+
+Example:
+
+5 active habits
+
+3 completed
+
+Progress = 60%
+
+---
+
+## Habit Helper Integration
+
+The Habit Helper should react to completion percentage.
+
+### 0%
+
+Message:
+
+"Let's get started today."
+
+### 25%
+
+Message:
+
+"Nice start! Keep it going."
+
+### 50%
+
+Message:
+
+"You're halfway there."
+
+### 75%
+
+Message:
+
+"Almost done!"
+
+### 100%
+
+Message:
+
+"Fantastic! All habits completed today!"
+
+---
+
+## Animation Requirements
+
+Use Framer Motion.
+
+When a habit is marked complete:
+
+* Button transforms into a green completed state
+* Small success animation
+* Habit Helper performs a celebration animation
+* Progress ring updates smoothly
+
+Animation duration:
+
+1–2 seconds
+
+Keep animations lightweight and professional.
+
+---
+
+## Data Requirements
+
+Store completion by date.
+
+Users should be able to complete a habit once per day.
+
+When a new day starts:
+
+* Status automatically resets to Not Completed
+* Habit becomes available for completion again
+
+---
+
+## Success Criteria
+
+Users can:
+
+* View all habits
+* Mark a habit complete
+* See completion status immediately
+* Watch Habit Helper react to progress
+* View updated completion percentage
+* Complete habits again on the next day
+
+The implementation should remain simple, intuitive, and integrated with the existing My Habits page.
