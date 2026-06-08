@@ -22,7 +22,6 @@ import type { Habit, Classification } from "@workspace/api-client-react";
 import { HabitHelper } from "@/components/habit-helper";
 import { HabitProgressRing, HabitStreakBadge } from "@/components/habit-progress-ring";
 import { HabitCelebrationModal } from "@/components/habit-plant-widget";
-import { HabitHeatmap } from "@/components/habit-heatmap";
 import {
   Dialog,
   DialogContent,
@@ -870,14 +869,6 @@ export function HabitsTab({ onToast }: HabitsTabProps) {
             </div>
           </div>
         </div>
-      )}
-
-      {/* Habit Calendar Heatmap */}
-      {(habitDoneDates.size > 0 || allSkippedDates.length > 0) && (
-        <HabitHeatmap
-          doneDates={habitDoneDates}
-          skippedDates={new Set(allSkippedDates)}
-        />
       )}
 
       {/* Header row */}
