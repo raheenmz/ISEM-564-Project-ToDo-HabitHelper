@@ -2,16 +2,18 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence, useAnimationControls } from "framer-motion";
 import { X } from "lucide-react";
 
-export type HelperState = "idle" | "starting" | "halfway" | "almost" | "celebrating" | "excited" | "concerned";
+export type HelperState = "idle" | "starting" | "halfway" | "almost" | "celebrating" | "excited" | "concerned" | "firstHabit" | "oneLeft";
 
 const STREAK_MILESTONES = [3, 7, 14, 30, 100];
 
 const PROGRESS_MESSAGES: Record<HelperState, string> = {
   idle:        "Let's get started today.",
+  firstHabit:  "Great start! Momentum builds from here.",
   starting:    "Nice start! Keep it going.",
-  halfway:     "You're halfway there.",
+  halfway:     "You're doing really well today.",
   almost:      "Almost done!",
-  celebrating: "Fantastic! All habits completed today!",
+  oneLeft:     "Only one habit left. Finish strong!",
+  celebrating: "You crushed it today! Amazing work!",
   excited:     "You're on fire! Keep the streak alive!",
   concerned:   "No pressure — just pick one habit to start with.",
 };
@@ -20,21 +22,26 @@ export function deriveProgressState(
   pct: number,
   currentStreak: number,
   totalHabits: number,
+  completedHabits?: number,
 ): HelperState {
   if (totalHabits === 0) return "idle";
   if (pct === 100) return "celebrating";
-  if (pct >= 75)  return "almost";
-  if (pct >= 50)  return "halfway";
-  if (pct > 0)    return "starting";
+  if (completedHabits !== undefined && totalHabits - completedHabits === 1 && completedHabits > 0) return "oneLeft";
+  if (pct >= 75) return "almost";
+  if (pct >= 50) return "halfway";
+  if (completedHabits === 1 && totalHabits > 1) return "firstHabit";
+  if (pct > 0) return "starting";
   if (STREAK_MILESTONES.includes(currentStreak) && currentStreak > 0) return "excited";
   return "idle";
 }
 
 export const STATE_COLORS: Record<HelperState, { head: string; glow: string; antenna: string; badge: string }> = {
   idle:        { head: "#0f172a", glow: "rgba(20,184,166,0.15)",  antenna: "#5eead4", badge: "bg-slate-700"  },
+  firstHabit:  { head: "#134e4a", glow: "rgba(20,184,166,0.32)",  antenna: "#2dd4bf", badge: "bg-teal-600"   },
   starting:    { head: "#134e4a", glow: "rgba(20,184,166,0.28)",  antenna: "#2dd4bf", badge: "bg-teal-600"   },
   halfway:     { head: "#0e4b4e", glow: "rgba(6,182,212,0.38)",   antenna: "#22d3ee", badge: "bg-cyan-600"   },
   almost:      { head: "#431407", glow: "rgba(249,115,22,0.35)",  antenna: "#fb923c", badge: "bg-orange-500" },
+  oneLeft:     { head: "#431407", glow: "rgba(249,115,22,0.45)",  antenna: "#fb923c", badge: "bg-orange-500" },
   celebrating: { head: "#1e1b4b", glow: "rgba(139,92,246,0.40)", antenna: "#a78bfa", badge: "bg-violet-600" },
   excited:     { head: "#431407", glow: "rgba(249,115,22,0.30)",  antenna: "#fb923c", badge: "bg-orange-500" },
   concerned:   { head: "#1e293b", glow: "rgba(100,116,139,0.20)", antenna: "#94a3b8", badge: "bg-slate-500"  },
@@ -42,9 +49,11 @@ export const STATE_COLORS: Record<HelperState, { head: string; glow: string; ant
 
 const EYE_COLORS: Record<HelperState, string> = {
   idle:        "#0d9488",
+  firstHabit:  "#14b8a6",
   starting:    "#14b8a6",
   halfway:     "#06b6d4",
   almost:      "#f97316",
+  oneLeft:     "#f97316",
   celebrating: "#8b5cf6",
   excited:     "#f97316",
   concerned:   "#64748b",
@@ -52,9 +61,11 @@ const EYE_COLORS: Record<HelperState, string> = {
 
 const MOUTH_PATHS: Record<HelperState, string> = {
   idle:        "M 20 42 Q 32 48 44 42",
+  firstHabit:  "M 20 41 Q 32 50 44 41",
   starting:    "M 20 41 Q 32 49 44 41",
   halfway:     "M 20 41 Q 32 50 44 41",
   almost:      "M 18 40 Q 32 52 46 40",
+  oneLeft:     "M 18 40 Q 32 52 46 40",
   celebrating: "M 18 40 Q 32 52 46 40",
   excited:     "M 18 40 Q 32 52 46 40",
   concerned:   "M 20 46 Q 32 40 44 46",
@@ -213,7 +224,7 @@ export function HabitHelper({
   const pct = totalHabits > 0 ? Math.round((completedHabits / totalHabits) * 100) : 0;
   const state: HelperState = justCreatedHabit
     ? "celebrating"
-    : deriveProgressState(pct, currentStreak, totalHabits);
+    : deriveProgressState(pct, currentStreak, totalHabits, completedHabits);
 
   const colors = STATE_COLORS[state];
   const message = PROGRESS_MESSAGES[state];
@@ -243,10 +254,12 @@ export function HabitHelper({
   const floatAnimation =
     state === "celebrating"
       ? { y: [0, -14, 0, -8, 0], rotate: [-3, 3, -3, 2, 0] }
-      : state === "almost" || state === "excited"
+      : state === "almost" || state === "oneLeft" || state === "excited"
       ? { y: [0, -10, 0, -6, 0] }
       : state === "halfway"
       ? { y: [0, -6, 0] }
+      : state === "firstHabit"
+      ? { y: [0, -10, 0, -10, 0] }
       : state === "starting"
       ? { y: [0, -9, 0, -9, 0] }
       : state === "concerned"
@@ -256,10 +269,12 @@ export function HabitHelper({
   const floatTransition =
     state === "celebrating"
       ? { duration: 0.55, ease: "easeOut" as const, repeat: 3, repeatDelay: 2 }
-      : state === "almost" || state === "excited"
+      : state === "almost" || state === "oneLeft" || state === "excited"
       ? { duration: 0.7, ease: "easeInOut" as const, repeat: Infinity, repeatDelay: 0.5 }
       : state === "halfway"
       ? { duration: 2.2, ease: "easeInOut" as const, repeat: Infinity }
+      : state === "firstHabit"
+      ? { duration: 0.45, ease: "easeOut" as const, repeat: 2, repeatDelay: 1.5 }
       : state === "starting"
       ? { duration: 0.5, ease: "easeOut" as const, repeat: Infinity, repeatDelay: 1.5 }
       : { duration: 2.8, ease: "easeInOut" as const, repeat: Infinity };

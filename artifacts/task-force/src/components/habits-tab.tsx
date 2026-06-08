@@ -22,6 +22,7 @@ import type { Habit, Classification } from "@workspace/api-client-react";
 import { HabitHelper } from "@/components/habit-helper";
 import { HabitProgressRing, HabitStreakBadge } from "@/components/habit-progress-ring";
 import { HabitPlantWidget, HabitCelebrationModal } from "@/components/habit-plant-widget";
+import { HabitHeatmap } from "@/components/habit-heatmap";
 import {
   Dialog,
   DialogContent,
@@ -64,6 +65,8 @@ import {
   Trash2,
   Zap,
   SkipForward,
+  Trophy,
+  Flame,
 } from "lucide-react";
 
 const PRIORITY_OPTIONS = [
@@ -71,6 +74,44 @@ const PRIORITY_OPTIONS = [
   { value: "MEDIUM", label: "Medium" },
   { value: "HIGH", label: "High" },
 ];
+
+const XP_LEVELS = [
+  { level: 1, title: "Beginner",   min: 0,    max: 99   },
+  { level: 2, title: "Builder",    min: 100,  max: 249  },
+  { level: 3, title: "Consistent", min: 250,  max: 499  },
+  { level: 4, title: "Achiever",   min: 500,  max: 999  },
+  { level: 5, title: "Champion",   min: 1000, max: 1999 },
+  { level: 6, title: "Master",     min: 2000, max: Infinity },
+] as const;
+
+function getLevelInfo(xp: number) {
+  const found = [...XP_LEVELS].reverse().find((l) => xp >= l.min) ?? XP_LEVELS[0];
+  const next = XP_LEVELS.find((l) => l.level === found.level + 1);
+  const range = next ? next.min - found.min : 1;
+  const inLevel = xp - found.min;
+  return {
+    level: found.level,
+    title: found.title,
+    xp,
+    levelPct: next ? Math.min(100, Math.round((inLevel / range) * 100)) : 100,
+    xpToNext: next ? next.min - xp : 0,
+    nextMin: next?.min,
+  };
+}
+
+function getTimeGreeting(): { emoji: string; text: string } {
+  const h = new Date().getHours();
+  if (h < 12) return { emoji: "🌞", text: "Good Morning!" };
+  if (h < 17) return { emoji: "☀️", text: "Good Afternoon!" };
+  return { emoji: "🌙", text: "Good Evening!" };
+}
+
+function getStreakMessage(streak: number, remaining: number): string {
+  if (remaining === 0) return "All done for today — amazing work! 🎉";
+  if (streak >= 7) return `Keep your 🔥 ${streak}-day streak alive!`;
+  if (streak >= 1) return `You're on a ${streak}-day streak — keep it going!`;
+  return "Start your streak today — one habit at a time!";
+}
 
 const PRIORITY_STYLES: Record<string, string> = {
   HIGH: "bg-orange-50 text-orange-700",
@@ -622,6 +663,12 @@ export function HabitsTab({ onToast }: HabitsTabProps) {
 
   const today = new Date().toISOString().split("T")[0];
 
+  // XP + level derived from task history (no extra API call needed)
+  const habitDoneCount = allTasks.filter((t) => t.habitId != null && t.status === "DONE").length;
+  const habitDoneDates = new Set<string>(
+    allTasks.filter((t) => t.habitId != null && t.status === "DONE" && t.deadline).map((t) => t.deadline!),
+  );
+
   const allSkippedDates = Array.from(
     new Set(allHabits.flatMap((h) => (h as Habit & { skippedDates: string[] }).skippedDates ?? [])),
   );
@@ -635,6 +682,10 @@ export function HabitsTab({ onToast }: HabitsTabProps) {
   const totalHabits = activeHabits.length;
   const productivityScore = totalHabits > 0 ? Math.round(((completedHabits + skippedTodayCount) / totalHabits) * 100) : 0;
   const currentStreak = computeStreak(allTasks, allSkippedDates);
+  const totalXP = habitDoneCount * 10 + currentStreak * 15;
+  const levelInfo = getLevelInfo(totalXP);
+  const greeting = getTimeGreeting();
+  const remaining = Math.max(0, totalHabits - completedHabits - skippedTodayCount);
 
   useEffect(() => {
     return () => { if (justCreatedTimer.current) clearTimeout(justCreatedTimer.current); };
@@ -707,7 +758,8 @@ export function HabitsTab({ onToast }: HabitsTabProps) {
       });
     }, 900);
     await updateTask.mutateAsync({ id: task.id, data: { status: "DONE" } });
-  }, [allTasks, today, updateTask]);
+    onToast("+10 XP earned! ⚡ Habit completed.");
+  }, [allTasks, today, updateTask, onToast]);
 
   async function handleGenerate() {
     setGenerating(true);
@@ -738,26 +790,94 @@ export function HabitsTab({ onToast }: HabitsTabProps) {
 
   return (
     <div className="space-y-6">
-      {/* Stats bar: progress ring + streak badge */}
+      {/* Daily Check-In Card */}
       {totalHabits > 0 && (
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm px-5 py-4 flex items-center gap-5 flex-wrap">
-          <HabitProgressRing completed={completedHabits} total={totalHabits} />
-          <div className="flex-1 min-w-0 space-y-1.5">
-            <p className="text-sm font-semibold text-slate-700">
-              {completedHabits === totalHabits
-                ? "All habits complete today! 🎉"
-                : completedHabits === 0
-                ? "Ready to start your habits?"
-                : `${completedHabits} of ${totalHabits} habits done today`}
-            </p>
-            <div className="flex items-center gap-2 flex-wrap">
-              <HabitStreakBadge streak={currentStreak} />
-              {completedHabits < totalHabits && totalHabits > 0 && (
-                <span className="text-xs text-slate-400">{totalHabits - completedHabits} remaining</span>
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35 }}
+          className="bg-gradient-to-r from-teal-500 to-cyan-500 rounded-2xl px-5 py-4 text-white shadow-sm"
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-1">
+              <p className="text-base font-bold">
+                {greeting.emoji} {greeting.text}
+              </p>
+              {remaining > 0 ? (
+                <>
+                  <p className="text-sm text-teal-100">
+                    You have <span className="font-semibold text-white">{totalHabits}</span> habit{totalHabits !== 1 ? "s" : ""} today.{" "}
+                    <span className="font-semibold text-white">{remaining}</span> more to reach your daily goal.
+                  </p>
+                  <p className="text-xs text-teal-200">{getStreakMessage(currentStreak, remaining)}</p>
+                </>
+              ) : (
+                <p className="text-sm text-teal-100 font-medium">{getStreakMessage(currentStreak, 0)}</p>
               )}
+            </div>
+            {currentStreak > 0 && (
+              <div className="flex-shrink-0 flex flex-col items-center bg-white/20 rounded-xl px-3 py-2">
+                <Flame className="w-5 h-5 text-white" />
+                <span className="text-lg font-bold leading-none">{currentStreak}</span>
+                <span className="text-[10px] text-teal-100">streak</span>
+              </div>
+            )}
+          </div>
+        </motion.div>
+      )}
+
+      {/* Stats bar: progress ring + streak badge + XP */}
+      {totalHabits > 0 && (
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm px-5 py-4 space-y-3">
+          <div className="flex items-center gap-5 flex-wrap">
+            <HabitProgressRing completed={completedHabits} total={totalHabits} />
+            <div className="flex-1 min-w-0 space-y-1.5">
+              <p className="text-sm font-semibold text-slate-700">
+                {completedHabits === totalHabits
+                  ? "All habits complete today! 🎉"
+                  : completedHabits === 0
+                  ? "Ready to start your habits?"
+                  : `${completedHabits} of ${totalHabits} habits done today`}
+              </p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <HabitStreakBadge streak={currentStreak} />
+                {remaining > 0 && (
+                  <span className="text-xs text-slate-400">{remaining} remaining</span>
+                )}
+              </div>
+            </div>
+          </div>
+          {/* XP + Level bar */}
+          <div className="border-t border-slate-50 pt-3 space-y-1.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Trophy className="w-3.5 h-3.5 text-amber-500" />
+                <span className="text-xs font-semibold text-slate-700">
+                  Level {levelInfo.level} — {levelInfo.title}
+                </span>
+              </div>
+              <span className="text-xs text-slate-400">
+                {levelInfo.xp} XP{levelInfo.xpToNext > 0 ? ` · ${levelInfo.xpToNext} to next` : " · Max level!"}
+              </span>
+            </div>
+            <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+              <motion.div
+                className="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-500"
+                initial={{ width: 0 }}
+                animate={{ width: `${levelInfo.levelPct}%` }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
+              />
             </div>
           </div>
         </div>
+      )}
+
+      {/* Habit Calendar Heatmap */}
+      {(habitDoneDates.size > 0 || allSkippedDates.length > 0) && (
+        <HabitHeatmap
+          doneDates={habitDoneDates}
+          skippedDates={new Set(allSkippedDates)}
+        />
       )}
 
       {/* Header row */}

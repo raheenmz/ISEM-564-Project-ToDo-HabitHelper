@@ -5,9 +5,11 @@ import { HabitProgressRing } from "@/components/habit-progress-ring";
 
 const PROGRESS_MESSAGES: Record<HelperState, string> = {
   idle:        "Let's get started today.",
+  firstHabit:  "Great start! Momentum builds from here.",
   starting:    "Great start! Keep going.",
   halfway:     "You're halfway there.",
   almost:      "Almost done! Finish strong.",
+  oneLeft:     "Only one habit left. Finish strong!",
   celebrating: "Fantastic! All habits completed today!",
   excited:     "You're on fire! Keep the streak alive!",
   concerned:   "No pressure — just pick one habit to start with.",
