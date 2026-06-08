@@ -18,6 +18,7 @@ import {
 } from "@workspace/api-client-react";
 import type { Task, Group, GroupMember } from "@workspace/api-client-react";
 import { useAuth } from "@/hooks/use-auth";
+import { useGroupEvents } from "@/hooks/use-group-events";
 import { TaskFormDialog } from "@/components/task-form-dialog";
 import { CreateGroupDialog } from "@/components/create-group-dialog";
 import { CalendarView } from "@/components/calendar-view";
@@ -593,6 +594,8 @@ export default function Dashboard() {
   const { data: tasks = [], isLoading: tasksLoading } = useGetTasks();
   const { data: summary } = useGetDashboardSummary();
   const { data: groups = [], isLoading: groupsLoading } = useGetGroups();
+
+  useGroupEvents(!!user);
 
   const deleteTask = useDeleteTask({
     mutation: {

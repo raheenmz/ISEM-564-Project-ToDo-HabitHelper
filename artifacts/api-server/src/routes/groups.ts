@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq, and, or, desc, sql, inArray } from "drizzle-orm";
 import { db, groupsTable, groupMembersTable, groupNotesTable, usersTable, tasksTable, subtasksTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/auth";
+import { addSubscriber, emitGroupEvent } from "../lib/sse";
 
 const router: IRouter = Router();
 
@@ -81,6 +82,33 @@ async function getGroupWithDetails(groupId: number) {
   };
 }
 
+router.get("/groups/events", requireAuth, (req, res): void => {
+  const userId = req.session.userId!;
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+
+  res.write(": connected\n\n");
+
+  const remove = addSubscriber(userId, (chunk) => res.write(chunk));
+
+  const heartbeat = setInterval(() => {
+    try {
+      res.write(": ping\n\n");
+    } catch {
+      clearInterval(heartbeat);
+    }
+  }, 25000);
+
+  req.on("close", () => {
+    clearInterval(heartbeat);
+    remove();
+  });
+});
+
 router.get("/groups", requireAuth, async (req, res): Promise<void> => {
   const userId = req.session.userId!;
 
@@ -131,6 +159,9 @@ router.post("/groups", requireAuth, async (req, res): Promise<void> => {
   await db.insert(groupMembersTable).values({ groupId: group.id, userId });
 
   const result = await getGroupWithDetails(group.id);
+
+  emitGroupEvent({ type: "group:created", groupId: group.id });
+
   res.status(201).json(result);
 });
 
@@ -202,6 +233,8 @@ router.delete("/groups/:id", requireAuth, async (req, res): Promise<void> => {
   await db.delete(groupMembersTable).where(eq(groupMembersTable.groupId, groupId));
   await db.update(tasksTable).set({ groupId: null }).where(eq(tasksTable.groupId, groupId));
   await db.delete(groupsTable).where(eq(groupsTable.id, groupId));
+
+  emitGroupEvent({ type: "group:deleted", groupId });
 
   res.sendStatus(204);
 });
@@ -279,6 +312,9 @@ router.post("/groups/:id/members", requireAuth, async (req, res): Promise<void> 
   await db.insert(groupMembersTable).values({ groupId, userId: targetUser.id });
 
   const result = await getGroupWithDetails(groupId);
+
+  emitGroupEvent({ type: "member:added", groupId });
+
   res.json(result);
 });
 
@@ -332,6 +368,8 @@ router.delete(
       .where(
         and(eq(groupMembersTable.id, memberId), eq(groupMembersTable.groupId, groupId))
       );
+
+    emitGroupEvent({ type: "member:removed", groupId });
 
     res.sendStatus(204);
   }

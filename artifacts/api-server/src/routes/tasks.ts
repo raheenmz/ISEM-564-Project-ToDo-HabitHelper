@@ -13,6 +13,7 @@ import {
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/auth";
 import { sendTaskAssignedEmail, sendTaskCreatedEmail } from "../services/email";
+import { emitGroupEvent } from "../lib/sse";
 
 const router: IRouter = Router();
 
@@ -217,6 +218,10 @@ router.post("/tasks", requireAuth, async (req, res): Promise<void> => {
     }
   }
 
+  if (task.groupId != null) {
+    emitGroupEvent({ type: "task:created", groupId: task.groupId });
+  }
+
   res.status(201).json(
     GetTaskResponse.parse(
       taskWithOverdue({
@@ -380,6 +385,12 @@ router.put("/tasks/:id", requireAuth, async (req, res): Promise<void> => {
     }
   }
 
+  if (updated.groupId != null) {
+    emitGroupEvent({ type: "task:updated", groupId: updated.groupId });
+  } else if (existing.groupId != null) {
+    emitGroupEvent({ type: "task:updated", groupId: existing.groupId });
+  }
+
   res.json(
     UpdateTaskResponse.parse(
       taskWithOverdue({
@@ -410,6 +421,10 @@ router.delete("/tasks/:id", requireAuth, async (req, res): Promise<void> => {
   if (!deleted) {
     res.status(404).json({ error: "Task not found" });
     return;
+  }
+
+  if (deleted.groupId != null) {
+    emitGroupEvent({ type: "task:deleted", groupId: deleted.groupId });
   }
 
   res.sendStatus(204);
