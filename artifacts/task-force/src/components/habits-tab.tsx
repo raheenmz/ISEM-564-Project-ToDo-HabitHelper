@@ -1028,9 +1028,7 @@ export function HabitsTab({ onToast }: HabitsTabProps) {
                       {isDone ? "✓ Complete" : "Not Started"}
                     </span>
                   )}
-                  {!isSkippedToday && !hasTodayTask && habit.isActive && (
-                    <span className="text-xs text-slate-400 italic">Generate tasks to track today</span>
-                  )}
+
                   <span className="text-xs text-slate-400 flex items-center gap-1 ml-auto">
                     <CalendarDays className="w-3 h-3" /> since {habit.startDate}
                   </span>
@@ -1075,9 +1073,6 @@ export function HabitsTab({ onToast }: HabitsTabProps) {
                       </motion.button>
                     )}
                   </AnimatePresence>
-                )}
-                {habit.isActive && !hasTodayTask && (
-                  <p className="text-xs text-center text-slate-400 py-1">Generating today's task…</p>
                 )}
               </motion.div>
             );
