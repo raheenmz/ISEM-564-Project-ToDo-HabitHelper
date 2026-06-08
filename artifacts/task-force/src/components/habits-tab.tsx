@@ -1,10 +1,12 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useGetHabits,
   useGetTasks,
   useCreateHabit,
   useUpdateHabit,
+  useUpdateTask,
   useDeleteHabit,
   useGenerateTodayHabitTasks,
   useAiSuggestHabitTasks,
@@ -16,6 +18,8 @@ import {
 } from "@workspace/api-client-react";
 import type { Habit, Classification } from "@workspace/api-client-react";
 import { HabitHelper } from "@/components/habit-helper";
+import { HabitProgressRing, HabitStreakBadge } from "@/components/habit-progress-ring";
+import { HabitPlantWidget, HabitCelebrationModal } from "@/components/habit-plant-widget";
 import {
   Dialog,
   DialogContent,
@@ -72,6 +76,61 @@ const PRIORITY_STYLES: Record<string, string> = {
 };
 
 const NO_CATEGORY = "__none__";
+
+const MINI_CONFETTI_COLORS = ["#14b8a6", "#8b5cf6", "#f59e0b", "#ec4899", "#3b82f6"];
+
+function MiniConfetti({ visible }: { visible: boolean }) {
+  const particles = Array.from({ length: 10 }, (_, i) => {
+    const angle = (i / 10) * 360;
+    const rad = (angle * Math.PI) / 180;
+    const dist = 28 + Math.random() * 18;
+    return {
+      x: Math.cos(rad) * dist,
+      y: Math.sin(rad) * dist - 10,
+      color: MINI_CONFETTI_COLORS[i % MINI_CONFETTI_COLORS.length],
+    };
+  });
+
+  return (
+    <AnimatePresence>
+      {visible && (
+        <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-10">
+          {particles.map((p, i) => (
+            <motion.div
+              key={i}
+              className="absolute rounded-full"
+              style={{ width: 5, height: 5, backgroundColor: p.color }}
+              initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
+              animate={{ x: p.x, y: p.y, opacity: 0, scale: 0.3 }}
+              exit={{}}
+              transition={{ duration: 0.6, ease: "easeOut", delay: i * 0.015 }}
+            />
+          ))}
+        </div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+function FloatingSuccess({ visible }: { visible: boolean }) {
+  return (
+    <AnimatePresence>
+      {visible && (
+        <motion.div
+          className="absolute -top-8 left-1/2 -translate-x-1/2 z-20 pointer-events-none"
+          initial={{ y: 0, opacity: 1 }}
+          animate={{ y: -20, opacity: 0 }}
+          exit={{}}
+          transition={{ duration: 0.9, ease: "easeOut" }}
+        >
+          <span className="text-xs font-semibold text-teal-600 bg-teal-50 border border-teal-200 px-2.5 py-1 rounded-full shadow-sm whitespace-nowrap">
+            ✓ Done!
+          </span>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
 
 interface HabitFormData {
   title: string;
@@ -531,6 +590,8 @@ function computeStreak(tasks: { habitId?: number | null; status: string; deadlin
   return streak;
 }
 
+type FullTask = { id: number; habitId?: number | null; status: string; deadline?: string | null };
+
 export function HabitsTab({ onToast }: HabitsTabProps) {
   const qc = useQueryClient();
   const [formOpen, setFormOpen] = useState(false);
@@ -538,7 +599,10 @@ export function HabitsTab({ onToast }: HabitsTabProps) {
   const [deletingHabit, setDeletingHabit] = useState<Habit | null>(null);
   const [generating, setGenerating] = useState(false);
   const [justCreatedHabit, setJustCreatedHabit] = useState(false);
+  const [completingHabitIds, setCompletingHabitIds] = useState<Set<number>>(new Set());
+  const [showCelebration, setShowCelebration] = useState(false);
   const justCreatedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const celebrationShownKey = `habitCelebration_${new Date().toISOString().split("T")[0]}`;
 
   const { data: habits = [], isLoading } = useGetHabits();
   const { data: classifications = [] } = useGetClassifications();
@@ -546,7 +610,7 @@ export function HabitsTab({ onToast }: HabitsTabProps) {
 
   const allHabits = habits as Habit[];
   const allClassifications = classifications as Classification[];
-  const allTasks = tasks as { habitId?: number | null; status: string; deadline?: string | null }[];
+  const allTasks = tasks as FullTask[];
 
   const today = new Date().toISOString().split("T")[0];
   const todayHabitTasks = allTasks.filter((t) => t.habitId != null && t.deadline === today);
@@ -559,6 +623,29 @@ export function HabitsTab({ onToast }: HabitsTabProps) {
     return () => { if (justCreatedTimer.current) clearTimeout(justCreatedTimer.current); };
   }, []);
 
+  useEffect(() => {
+    if (totalHabits > 0 && completedHabits === totalHabits) {
+      const alreadyShown = sessionStorage.getItem(celebrationShownKey);
+      if (!alreadyShown) {
+        const t = setTimeout(() => {
+          setShowCelebration(true);
+          sessionStorage.setItem(celebrationShownKey, "1");
+        }, 600);
+        return () => clearTimeout(t);
+      }
+    }
+    return undefined;
+  }, [completedHabits, totalHabits, celebrationShownKey]);
+
+  const updateTask = useUpdateTask({
+    mutation: {
+      onSuccess: () => {
+        qc.invalidateQueries({ queryKey: getGetTasksQueryKey() });
+        qc.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+      },
+    },
+  });
+
   const deleteHabit = useDeleteHabit({
     mutation: {
       onSuccess: () => {
@@ -569,6 +656,23 @@ export function HabitsTab({ onToast }: HabitsTabProps) {
   });
 
   const generateToday = useGenerateTodayHabitTasks();
+
+  const handleToggleHabitComplete = useCallback(async (habitId: number) => {
+    const task = allTasks.find((t) => t.habitId === habitId && t.deadline === today);
+    if (!task) return;
+    const newStatus = task.status === "DONE" ? "TODO" : "DONE";
+    if (newStatus === "DONE") {
+      setCompletingHabitIds((prev) => new Set(prev).add(habitId));
+      setTimeout(() => {
+        setCompletingHabitIds((prev) => {
+          const next = new Set(prev);
+          next.delete(habitId);
+          return next;
+        });
+      }, 900);
+    }
+    await updateTask.mutateAsync({ id: task.id, data: { status: newStatus } });
+  }, [allTasks, today, updateTask]);
 
   async function handleGenerate() {
     setGenerating(true);
@@ -599,6 +703,28 @@ export function HabitsTab({ onToast }: HabitsTabProps) {
 
   return (
     <div className="space-y-6">
+      {/* Stats bar: progress ring + streak badge */}
+      {totalHabits > 0 && (
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm px-5 py-4 flex items-center gap-5 flex-wrap">
+          <HabitProgressRing completed={completedHabits} total={totalHabits} />
+          <div className="flex-1 min-w-0 space-y-1.5">
+            <p className="text-sm font-semibold text-slate-700">
+              {completedHabits === totalHabits
+                ? "All habits complete today! 🎉"
+                : completedHabits === 0
+                ? "Ready to start your habits?"
+                : `${completedHabits} of ${totalHabits} habits done today`}
+            </p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <HabitStreakBadge streak={currentStreak} />
+              {completedHabits < totalHabits && totalHabits > 0 && (
+                <span className="text-xs text-slate-400">{totalHabits - completedHabits} remaining</span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header row */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3">
@@ -650,20 +776,68 @@ export function HabitsTab({ onToast }: HabitsTabProps) {
         <div className="grid sm:grid-cols-2 gap-3">
           {allHabits.map((habit) => {
             const cls = allClassifications.find((c) => c.id === habit.classificationId);
+            const todayTask = allTasks.find((t) => t.habitId === habit.id && t.deadline === today);
+            const isDone = todayTask?.status === "DONE";
+            const isCompleting = completingHabitIds.has(habit.id);
+            const hasTodayTask = !!todayTask;
             return (
-              <div
+              <motion.div
                 key={habit.id}
-                className={`bg-white rounded-2xl p-5 border shadow-sm flex flex-col gap-3 group transition-opacity ${habit.isActive ? "border-slate-100" : "border-slate-100 opacity-60"}`}
+                layout
+                className={`bg-white rounded-2xl p-5 border shadow-sm flex flex-col gap-3 group transition-colors relative overflow-visible ${
+                  isDone
+                    ? "border-teal-200 bg-teal-50/40"
+                    : habit.isActive
+                    ? "border-slate-100"
+                    : "border-slate-100 opacity-60"
+                }`}
               >
+                <MiniConfetti visible={isCompleting} />
+                <FloatingSuccess visible={isCompleting} />
+
                 <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${habit.isActive ? "bg-teal-400" : "bg-slate-300"}`} />
-                      <h4 className="font-semibold text-slate-800 text-sm leading-snug">{habit.title}</h4>
-                    </div>
-                    {habit.description && (
-                      <p className="text-xs text-slate-400 leading-relaxed line-clamp-2">{habit.description}</p>
+                  <div className="flex items-start gap-2.5 flex-1 min-w-0">
+                    {/* Completion toggle */}
+                    {hasTodayTask && habit.isActive && (
+                      <motion.button
+                        onClick={() => handleToggleHabitComplete(habit.id)}
+                        className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+                          isDone
+                            ? "bg-teal-500 border-teal-500 text-white"
+                            : "border-slate-300 hover:border-teal-400"
+                        }`}
+                        whileTap={{ scale: 0.85 }}
+                        animate={isDone ? { scale: [1, 1.25, 1] } : { scale: 1 }}
+                        transition={{ duration: 0.3 }}
+                        title={isDone ? "Mark as incomplete" : "Mark as done for today"}
+                      >
+                        <AnimatePresence mode="wait">
+                          {isDone && (
+                            <motion.svg
+                              key="check"
+                              width="10" height="10" viewBox="0 0 10 10"
+                              initial={{ scale: 0, opacity: 0 }}
+                              animate={{ scale: 1, opacity: 1 }}
+                              exit={{ scale: 0, opacity: 0 }}
+                              transition={{ duration: 0.2 }}
+                            >
+                              <polyline points="1.5,5.5 4,8 8.5,2" stroke="white" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                            </motion.svg>
+                          )}
+                        </AnimatePresence>
+                      </motion.button>
                     )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${habit.isActive ? "bg-teal-400" : "bg-slate-300"}`} />
+                        <h4 className={`font-semibold text-sm leading-snug ${isDone ? "line-through text-slate-400" : "text-slate-800"}`}>
+                          {habit.title}
+                        </h4>
+                      </div>
+                      {habit.description && (
+                        <p className="text-xs text-slate-400 leading-relaxed line-clamp-2">{habit.description}</p>
+                      )}
+                    </div>
                   </div>
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                     <button
@@ -694,18 +868,31 @@ export function HabitsTab({ onToast }: HabitsTabProps) {
                   <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${habit.isActive ? "bg-teal-50 text-teal-700" : "bg-slate-100 text-slate-500"}`}>
                     {habit.isActive ? "Active" : "Paused"}
                   </span>
+                  {!hasTodayTask && habit.isActive && (
+                    <span className="text-xs text-slate-400 italic">Generate tasks to track today</span>
+                  )}
                   <span className="text-xs text-slate-400 flex items-center gap-1 ml-auto">
                     <CalendarDays className="w-3 h-3" /> since {habit.startDate}
                   </span>
                 </div>
-              </div>
+              </motion.div>
             );
           })}
         </div>
       )}
 
+      {/* Plant Widget */}
+      <HabitPlantWidget streak={currentStreak} />
+
       {/* AI Habit Helper */}
       <AiHabitHelper onTasksAdded={() => onToast("Tasks added to your list!")} />
+
+      {/* Celebration Modal */}
+      <HabitCelebrationModal
+        show={showCelebration}
+        onClose={() => setShowCelebration(false)}
+        streak={currentStreak}
+      />
 
       {/* Habit Helper Widget */}
       <div className="flex justify-end">
