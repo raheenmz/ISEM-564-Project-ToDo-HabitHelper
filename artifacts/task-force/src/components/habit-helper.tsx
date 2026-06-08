@@ -7,8 +7,8 @@ export type HelperState = "idle" | "starting" | "halfway" | "almost" | "celebrat
 const STREAK_MILESTONES = [3, 7, 14, 30, 100];
 
 const PROGRESS_MESSAGES: Record<HelperState, string> = {
-  idle:        "Let's get started today.",
-  firstHabit:  "Great start! Momentum builds from here.",
+  idle:        "Hello! Ready for a productive day?",
+  firstHabit:  "Great start! Momentum builds here.",
   starting:    "Nice start! Keep it going.",
   halfway:     "You're doing really well today.",
   almost:      "Almost done!",
