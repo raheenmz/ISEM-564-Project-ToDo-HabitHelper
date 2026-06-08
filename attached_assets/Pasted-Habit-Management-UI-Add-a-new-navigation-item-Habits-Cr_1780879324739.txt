@@ -1,0 +1,86 @@
+Habit Management UI
+Add a new navigation item:
+"Habits"
+Create a Habit Management page containing:
+Habit List
+Display:
+Title
+Priority
+Classification
+Start Date
+Active Status
+Actions:
+Edit
+Delete
+Activate / Deactivate
+Create Habit Form
+Fields:
+Title
+Description
+Priority
+Classification
+Start Date
+Active Toggle
+Use existing application styling and component patterns.
+Generate Today's Habit Tasks
+Add a button:
+"Generate Today's Habit Tasks"
+Place it:
+On the Habit Management page
+Optionally on the Dashboard
+Backend Logic
+When the button is clicked:
+Fetch all active habits for the current user.
+For each active habit:
+Check whether a task already exists where:
+habit_id = habit.id
+AND task_date = today
+If one exists:
+Skip creation
+If one does not exist:
+Create a new task.
+Generated Task Mapping
+For every generated task:
+Task Title = Habit Title
+Task Description = Habit Description
+Priority = Habit Priority
+Classification = Habit Classification
+Status = "To Do"
+Due Date = Current Date
+habit_id = Habit ID
+created_by = Current User
+Duplicate Prevention
+A habit must generate only one task per day.
+Requirements:
+No duplicate task generation for the same habit and date.
+Repeated button clicks should not create additional tasks.
+Implement both:
+Backend validation
+Database-level protection if possible
+Suggested unique constraint:
+UNIQUE(habit_id, due_date)
+Dashboard Integration
+Generated habit tasks should appear exactly like regular tasks.
+They must be visible in:
+Dashboard
+List View
+Kanban View
+Calendar View
+No special filtering required.
+API Endpoints
+Create:
+GET /api/habits
+GET /api/habits/
+POST /api/habits
+PUT /api/habits/
+DELETE /api/habits/
+POST /api/habits/generate-today
+Success Criteria
+A user should be able to:
+Create a daily habit.
+Activate or deactivate habits.
+Click "Generate Today's Habit Tasks".
+Automatically create today's task from active habits.
+Avoid duplicate habit task generation.
+See generated habit tasks throughout the existing task management system.
+Follow existing project architecture, coding conventions, database patterns, authentication middleware, and UI component library already used in Task Force.

@@ -21,6 +21,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { TaskFormDialog } from "@/components/task-form-dialog";
 import { CreateGroupDialog } from "@/components/create-group-dialog";
 import { CalendarView } from "@/components/calendar-view";
+import { HabitsTab } from "@/components/habits-tab";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,6 +48,7 @@ import {
   MessageSquare,
   Pencil,
   Plus,
+  RefreshCw,
   Trash2,
   Users,
   UserPlus,
@@ -573,7 +575,7 @@ export default function Dashboard() {
   const { user, isLoading: authLoading, logout, isLoggingOut } = useAuth();
   const qc = useQueryClient();
 
-  const [activeSection, setActiveSection] = useState<"tasks" | "groups" | "calendar">("tasks");
+  const [activeSection, setActiveSection] = useState<"tasks" | "groups" | "calendar" | "habits">("tasks");
   const [toast, setToast] = useState<{ message: string; show: boolean }>({ message: "", show: false });
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [activeTab, setActiveTab] = useState<"list" | "kanban">("list");
@@ -724,6 +726,12 @@ export default function Dashboard() {
               className={`px-4 py-1.5 rounded-full text-sm font-medium flex items-center gap-1.5 transition-colors ${activeSection === "calendar" ? "bg-white text-teal-700 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
             >
               <CalendarDays className="w-4 h-4" /> Calendar
+            </button>
+            <button
+              onClick={() => setActiveSection("habits")}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium flex items-center gap-1.5 transition-colors ${activeSection === "habits" ? "bg-white text-teal-700 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+            >
+              <RefreshCw className="w-4 h-4" /> Habits
             </button>
             <button
               onClick={() => setActiveSection("groups")}
@@ -1015,6 +1023,13 @@ export default function Dashboard() {
               </button>
             </div>
             <CalendarView tasks={allTasks} groups={allGroups} onEditTask={openEdit} />
+          </section>
+        )}
+
+        {/* ════ HABITS SECTION ════ */}
+        {activeSection === "habits" && (
+          <section>
+            <HabitsTab onToast={showToast} />
           </section>
         )}
 

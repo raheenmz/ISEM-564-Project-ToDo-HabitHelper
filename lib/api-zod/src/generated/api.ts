@@ -467,3 +467,132 @@ export const DeleteGroupNoteParams = zod.object({
 })
 
 
+/**
+ * @summary List all habits for current user
+ */
+export const GetHabitsResponseItem = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "classificationId": zod.number().nullish(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "priority": zod.enum(['LOW', 'MEDIUM', 'HIGH']),
+  "recurrenceType": zod.string(),
+  "startDate": zod.string(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+export const GetHabitsResponse = zod.array(GetHabitsResponseItem)
+
+
+/**
+ * @summary Create a new habit
+ */
+
+
+
+export const CreateHabitBody = zod.object({
+  "title": zod.string().min(1),
+  "description": zod.string().optional(),
+  "priority": zod.enum(['LOW', 'MEDIUM', 'HIGH']),
+  "classificationId": zod.number().optional(),
+  "startDate": zod.string(),
+  "isActive": zod.boolean().optional()
+})
+
+
+/**
+ * @summary Get a habit by ID
+ */
+export const GetHabitParams = zod.object({
+  "habitId": zod.coerce.number()
+})
+
+export const GetHabitResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "classificationId": zod.number().nullish(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "priority": zod.enum(['LOW', 'MEDIUM', 'HIGH']),
+  "recurrenceType": zod.string(),
+  "startDate": zod.string(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Update a habit
+ */
+export const UpdateHabitParams = zod.object({
+  "habitId": zod.coerce.number()
+})
+
+
+
+
+export const UpdateHabitBody = zod.object({
+  "title": zod.string().min(1).optional(),
+  "description": zod.string().nullish(),
+  "priority": zod.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
+  "classificationId": zod.number().nullish(),
+  "startDate": zod.string().optional(),
+  "isActive": zod.boolean().optional()
+})
+
+export const UpdateHabitResponse = zod.object({
+  "id": zod.number(),
+  "userId": zod.number(),
+  "classificationId": zod.number().nullish(),
+  "title": zod.string(),
+  "description": zod.string().nullish(),
+  "priority": zod.enum(['LOW', 'MEDIUM', 'HIGH']),
+  "recurrenceType": zod.string(),
+  "startDate": zod.string(),
+  "isActive": zod.boolean(),
+  "createdAt": zod.string(),
+  "updatedAt": zod.string()
+})
+
+
+/**
+ * @summary Delete a habit
+ */
+export const DeleteHabitParams = zod.object({
+  "habitId": zod.coerce.number()
+})
+
+
+/**
+ * @summary Generate today's tasks for all active habits
+ */
+export const GenerateTodayHabitTasksResponse = zod.object({
+  "generated": zod.number(),
+  "skipped": zod.number()
+})
+
+
+/**
+ * @summary Get AI-suggested tasks for a goal
+ */
+
+
+
+export const AiSuggestHabitTasksBody = zod.object({
+  "goal": zod.string().min(1),
+  "targetDate": zod.string().optional()
+})
+
+export const AiSuggestHabitTasksResponse = zod.object({
+  "suggestions": zod.array(zod.object({
+  "title": zod.string(),
+  "description": zod.string().optional(),
+  "deadline": zod.string().nullish(),
+  "priority": zod.enum(['LOW', 'MEDIUM', 'HIGH'])
+}))
+})
+
+

@@ -252,3 +252,100 @@ export interface AddGroupMemberInput {
   memberName: string;
 }
 
+export type HabitPriority = typeof HabitPriority[keyof typeof HabitPriority];
+
+
+export const HabitPriority = {
+  LOW: 'LOW',
+  MEDIUM: 'MEDIUM',
+  HIGH: 'HIGH',
+} as const;
+
+export interface Habit {
+  id: number;
+  userId: number;
+  /** @nullable */
+  classificationId?: number | null;
+  title: string;
+  /** @nullable */
+  description?: string | null;
+  priority: HabitPriority;
+  recurrenceType: string;
+  startDate: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type HabitInputPriority = typeof HabitInputPriority[keyof typeof HabitInputPriority];
+
+
+export const HabitInputPriority = {
+  LOW: 'LOW',
+  MEDIUM: 'MEDIUM',
+  HIGH: 'HIGH',
+} as const;
+
+export interface HabitInput {
+  /** @minLength 1 */
+  title: string;
+  description?: string;
+  priority: HabitInputPriority;
+  classificationId?: number;
+  startDate: string;
+  isActive?: boolean;
+}
+
+export type HabitUpdatePriority = typeof HabitUpdatePriority[keyof typeof HabitUpdatePriority];
+
+
+export const HabitUpdatePriority = {
+  LOW: 'LOW',
+  MEDIUM: 'MEDIUM',
+  HIGH: 'HIGH',
+} as const;
+
+export interface HabitUpdate {
+  /** @minLength 1 */
+  title?: string;
+  /** @nullable */
+  description?: string | null;
+  priority?: HabitUpdatePriority;
+  /** @nullable */
+  classificationId?: number | null;
+  startDate?: string;
+  isActive?: boolean;
+}
+
+export interface GenerateTodayResult {
+  generated: number;
+  skipped: number;
+}
+
+export interface AiSuggestInput {
+  /** @minLength 1 */
+  goal: string;
+  targetDate?: string;
+}
+
+export type AiSuggestedTaskPriority = typeof AiSuggestedTaskPriority[keyof typeof AiSuggestedTaskPriority];
+
+
+export const AiSuggestedTaskPriority = {
+  LOW: 'LOW',
+  MEDIUM: 'MEDIUM',
+  HIGH: 'HIGH',
+} as const;
+
+export interface AiSuggestedTask {
+  title: string;
+  description?: string;
+  /** @nullable */
+  deadline?: string | null;
+  priority: AiSuggestedTaskPriority;
+}
+
+export interface AiSuggestResult {
+  suggestions: AiSuggestedTask[];
+}
+

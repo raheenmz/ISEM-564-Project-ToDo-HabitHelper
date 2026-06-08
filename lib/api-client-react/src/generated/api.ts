@@ -21,13 +21,19 @@ import type {
 
 import type {
   AddGroupMemberInput,
+  AiSuggestInput,
+  AiSuggestResult,
   Classification,
   ClassificationInput,
   DashboardSummary,
+  GenerateTodayResult,
   Group,
   GroupInput,
   GroupNote,
   GroupNoteInput,
+  Habit,
+  HabitInput,
+  HabitUpdate,
   HealthStatus,
   LoginInput,
   Subtask,
@@ -1958,5 +1964,513 @@ export const useDeleteGroupNote = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getDeleteGroupNoteMutationOptions(options));
+    }
+
+export const getGetHabitsUrl = () => {
+
+
+
+
+  return `/api/habits`
+}
+
+/**
+ * @summary List all habits for current user
+ */
+export const getHabits = async ( options?: RequestInit): Promise<Habit[]> => {
+
+  return customFetch<Habit[]>(getGetHabitsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetHabitsQueryKey = () => {
+    return [
+    `/api/habits`
+    ] as const;
+    }
+
+
+export const getGetHabitsQueryOptions = <TData = Awaited<ReturnType<typeof getHabits>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getHabits>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetHabitsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getHabits>>> = ({ signal }) => getHabits({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getHabits>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetHabitsQueryResult = NonNullable<Awaited<ReturnType<typeof getHabits>>>
+export type GetHabitsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List all habits for current user
+ */
+
+export function useGetHabits<TData = Awaited<ReturnType<typeof getHabits>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getHabits>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetHabitsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateHabitUrl = () => {
+
+
+
+
+  return `/api/habits`
+}
+
+/**
+ * @summary Create a new habit
+ */
+export const createHabit = async (habitInput: HabitInput, options?: RequestInit): Promise<Habit> => {
+
+  return customFetch<Habit>(getCreateHabitUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      habitInput,)
+  }
+);}
+
+
+
+
+export const getCreateHabitMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createHabit>>, TError,{data: BodyType<HabitInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createHabit>>, TError,{data: BodyType<HabitInput>}, TContext> => {
+
+const mutationKey = ['createHabit'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createHabit>>, {data: BodyType<HabitInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createHabit(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateHabitMutationResult = NonNullable<Awaited<ReturnType<typeof createHabit>>>
+    export type CreateHabitMutationBody = BodyType<HabitInput>
+    export type CreateHabitMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Create a new habit
+ */
+export const useCreateHabit = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createHabit>>, TError,{data: BodyType<HabitInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createHabit>>,
+        TError,
+        {data: BodyType<HabitInput>},
+        TContext
+      > => {
+      return useMutation(getCreateHabitMutationOptions(options));
+    }
+
+export const getGetHabitUrl = (habitId: number,) => {
+
+
+
+
+  return `/api/habits/${habitId}`
+}
+
+/**
+ * @summary Get a habit by ID
+ */
+export const getHabit = async (habitId: number, options?: RequestInit): Promise<Habit> => {
+
+  return customFetch<Habit>(getGetHabitUrl(habitId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetHabitQueryKey = (habitId: number,) => {
+    return [
+    `/api/habits/${habitId}`
+    ] as const;
+    }
+
+
+export const getGetHabitQueryOptions = <TData = Awaited<ReturnType<typeof getHabit>>, TError = ErrorType<void>>(habitId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getHabit>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetHabitQueryKey(habitId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getHabit>>> = ({ signal }) => getHabit(habitId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(habitId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getHabit>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetHabitQueryResult = NonNullable<Awaited<ReturnType<typeof getHabit>>>
+export type GetHabitQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get a habit by ID
+ */
+
+export function useGetHabit<TData = Awaited<ReturnType<typeof getHabit>>, TError = ErrorType<void>>(
+ habitId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getHabit>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetHabitQueryOptions(habitId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpdateHabitUrl = (habitId: number,) => {
+
+
+
+
+  return `/api/habits/${habitId}`
+}
+
+/**
+ * @summary Update a habit
+ */
+export const updateHabit = async (habitId: number,
+    habitUpdate: HabitUpdate, options?: RequestInit): Promise<Habit> => {
+
+  return customFetch<Habit>(getUpdateHabitUrl(habitId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      habitUpdate,)
+  }
+);}
+
+
+
+
+export const getUpdateHabitMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateHabit>>, TError,{habitId: number;data: BodyType<HabitUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateHabit>>, TError,{habitId: number;data: BodyType<HabitUpdate>}, TContext> => {
+
+const mutationKey = ['updateHabit'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateHabit>>, {habitId: number;data: BodyType<HabitUpdate>}> = (props) => {
+          const {habitId,data} = props ?? {};
+
+          return  updateHabit(habitId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateHabitMutationResult = NonNullable<Awaited<ReturnType<typeof updateHabit>>>
+    export type UpdateHabitMutationBody = BodyType<HabitUpdate>
+    export type UpdateHabitMutationError = ErrorType<void>
+
+    /**
+ * @summary Update a habit
+ */
+export const useUpdateHabit = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateHabit>>, TError,{habitId: number;data: BodyType<HabitUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateHabit>>,
+        TError,
+        {habitId: number;data: BodyType<HabitUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateHabitMutationOptions(options));
+    }
+
+export const getDeleteHabitUrl = (habitId: number,) => {
+
+
+
+
+  return `/api/habits/${habitId}`
+}
+
+/**
+ * @summary Delete a habit
+ */
+export const deleteHabit = async (habitId: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteHabitUrl(habitId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteHabitMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteHabit>>, TError,{habitId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteHabit>>, TError,{habitId: number}, TContext> => {
+
+const mutationKey = ['deleteHabit'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteHabit>>, {habitId: number}> = (props) => {
+          const {habitId} = props ?? {};
+
+          return  deleteHabit(habitId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteHabitMutationResult = NonNullable<Awaited<ReturnType<typeof deleteHabit>>>
+
+    export type DeleteHabitMutationError = ErrorType<void>
+
+    /**
+ * @summary Delete a habit
+ */
+export const useDeleteHabit = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteHabit>>, TError,{habitId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteHabit>>,
+        TError,
+        {habitId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteHabitMutationOptions(options));
+    }
+
+export const getGenerateTodayHabitTasksUrl = () => {
+
+
+
+
+  return `/api/habits/generate-today`
+}
+
+/**
+ * @summary Generate today's tasks for all active habits
+ */
+export const generateTodayHabitTasks = async ( options?: RequestInit): Promise<GenerateTodayResult> => {
+
+  return customFetch<GenerateTodayResult>(getGenerateTodayHabitTasksUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getGenerateTodayHabitTasksMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateTodayHabitTasks>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof generateTodayHabitTasks>>, TError,void, TContext> => {
+
+const mutationKey = ['generateTodayHabitTasks'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof generateTodayHabitTasks>>, void> = () => {
+
+
+          return  generateTodayHabitTasks(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GenerateTodayHabitTasksMutationResult = NonNullable<Awaited<ReturnType<typeof generateTodayHabitTasks>>>
+
+    export type GenerateTodayHabitTasksMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Generate today's tasks for all active habits
+ */
+export const useGenerateTodayHabitTasks = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof generateTodayHabitTasks>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof generateTodayHabitTasks>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getGenerateTodayHabitTasksMutationOptions(options));
+    }
+
+export const getAiSuggestHabitTasksUrl = () => {
+
+
+
+
+  return `/api/habits/ai-suggest`
+}
+
+/**
+ * @summary Get AI-suggested tasks for a goal
+ */
+export const aiSuggestHabitTasks = async (aiSuggestInput: AiSuggestInput, options?: RequestInit): Promise<AiSuggestResult> => {
+
+  return customFetch<AiSuggestResult>(getAiSuggestHabitTasksUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      aiSuggestInput,)
+  }
+);}
+
+
+
+
+export const getAiSuggestHabitTasksMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof aiSuggestHabitTasks>>, TError,{data: BodyType<AiSuggestInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof aiSuggestHabitTasks>>, TError,{data: BodyType<AiSuggestInput>}, TContext> => {
+
+const mutationKey = ['aiSuggestHabitTasks'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof aiSuggestHabitTasks>>, {data: BodyType<AiSuggestInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  aiSuggestHabitTasks(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AiSuggestHabitTasksMutationResult = NonNullable<Awaited<ReturnType<typeof aiSuggestHabitTasks>>>
+    export type AiSuggestHabitTasksMutationBody = BodyType<AiSuggestInput>
+    export type AiSuggestHabitTasksMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Get AI-suggested tasks for a goal
+ */
+export const useAiSuggestHabitTasks = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof aiSuggestHabitTasks>>, TError,{data: BodyType<AiSuggestInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof aiSuggestHabitTasks>>,
+        TError,
+        {data: BodyType<AiSuggestInput>},
+        TContext
+      > => {
+      return useMutation(getAiSuggestHabitTasksMutationOptions(options));
     }
 

@@ -6,6 +6,7 @@ import subtasksRouter from "./subtasks";
 import classificationsRouter from "./classifications";
 import dashboardRouter from "./dashboard";
 import groupsRouter from "./groups";
+import habitsRouter from "./habits";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(subtasksRouter);
 router.use(classificationsRouter);
 router.use(dashboardRouter);
 router.use(groupsRouter);
+router.use(habitsRouter);
 
 export default router;

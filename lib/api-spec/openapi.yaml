@@ -20,6 +20,8 @@ tags:
     description: Dashboard data
   - name: groups
     description: Group collaboration
+  - name: habits
+    description: Habit management
 
 paths:
   /healthz:
@@ -537,6 +539,131 @@ paths:
         "404":
           description: Note not found
 
+  /habits:
+    get:
+      operationId: getHabits
+      tags: [habits]
+      summary: List all habits for current user
+      responses:
+        "200":
+          description: List of habits
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Habit"
+    post:
+      operationId: createHabit
+      tags: [habits]
+      summary: Create a new habit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HabitInput"
+      responses:
+        "201":
+          description: Habit created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Habit"
+
+  /habits/{habitId}:
+    get:
+      operationId: getHabit
+      tags: [habits]
+      summary: Get a habit by ID
+      parameters:
+        - name: habitId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Habit found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Habit"
+        "404":
+          description: Habit not found
+    patch:
+      operationId: updateHabit
+      tags: [habits]
+      summary: Update a habit
+      parameters:
+        - name: habitId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HabitUpdate"
+      responses:
+        "200":
+          description: Habit updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Habit"
+        "404":
+          description: Habit not found
+    delete:
+      operationId: deleteHabit
+      tags: [habits]
+      summary: Delete a habit
+      parameters:
+        - name: habitId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Habit deleted
+        "404":
+          description: Habit not found
+
+  /habits/generate-today:
+    post:
+      operationId: generateTodayHabitTasks
+      tags: [habits]
+      summary: Generate today's tasks for all active habits
+      responses:
+        "200":
+          description: Tasks generated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenerateTodayResult"
+
+  /habits/ai-suggest:
+    post:
+      operationId: aiSuggestHabitTasks
+      tags: [habits]
+      summary: Get AI-suggested tasks for a goal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiSuggestInput"
+      responses:
+        "200":
+          description: AI task suggestions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiSuggestResult"
+
 components:
   schemas:
     HealthStatus:
@@ -898,3 +1025,128 @@ components:
           minLength: 1
       required:
         - memberName
+
+    Habit:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        classificationId:
+          type: ["integer", "null"]
+        title:
+          type: string
+        description:
+          type: ["string", "null"]
+        priority:
+          type: string
+          enum: [LOW, MEDIUM, HIGH]
+        recurrenceType:
+          type: string
+        startDate:
+          type: string
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - userId
+        - title
+        - priority
+        - recurrenceType
+        - startDate
+        - isActive
+        - createdAt
+        - updatedAt
+
+    HabitInput:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        priority:
+          type: string
+          enum: [LOW, MEDIUM, HIGH]
+        classificationId:
+          type: integer
+        startDate:
+          type: string
+        isActive:
+          type: boolean
+      required:
+        - title
+        - priority
+        - startDate
+
+    HabitUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        description:
+          type: ["string", "null"]
+        priority:
+          type: string
+          enum: [LOW, MEDIUM, HIGH]
+        classificationId:
+          type: ["integer", "null"]
+        startDate:
+          type: string
+        isActive:
+          type: boolean
+
+    GenerateTodayResult:
+      type: object
+      properties:
+        generated:
+          type: integer
+        skipped:
+          type: integer
+      required:
+        - generated
+        - skipped
+
+    AiSuggestInput:
+      type: object
+      properties:
+        goal:
+          type: string
+          minLength: 1
+        targetDate:
+          type: string
+      required:
+        - goal
+
+    AiSuggestedTask:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        deadline:
+          type: ["string", "null"]
+        priority:
+          type: string
+          enum: [LOW, MEDIUM, HIGH]
+      required:
+        - title
+        - priority
+
+    AiSuggestResult:
+      type: object
+      properties:
+        suggestions:
+          type: array
+          items:
+            $ref: "#/components/schemas/AiSuggestedTask"
+      required:
+        - suggestions

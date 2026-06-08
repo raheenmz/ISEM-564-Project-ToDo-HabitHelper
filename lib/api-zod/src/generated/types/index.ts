@@ -7,10 +7,15 @@
  */
 
 export * from './addGroupMemberInput';
+export * from './aiSuggestedTask';
+export * from './aiSuggestedTaskPriority';
+export * from './aiSuggestInput';
+export * from './aiSuggestResult';
 export * from './classification';
 export * from './classificationInput';
 export * from './classificationType';
 export * from './dashboardSummary';
+export * from './generateTodayResult';
 export * from './group';
 export * from './groupInput';
 export * from './groupMember';
@@ -19,6 +24,12 @@ export * from './groupNoteInput';
 export * from './groupTask';
 export * from './groupTaskPriority';
 export * from './groupTaskStatus';
+export * from './habit';
+export * from './habitInput';
+export * from './habitInputPriority';
+export * from './habitPriority';
+export * from './habitUpdate';
+export * from './habitUpdatePriority';
 export * from './healthStatus';
 export * from './loginInput';
 export * from './subtask';
