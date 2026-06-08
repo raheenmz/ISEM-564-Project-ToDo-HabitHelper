@@ -1,0 +1,208 @@
+# Feature Request: Animated Habit Helper
+
+Enhance the Habit Builder feature by introducing an animated "Habit Helper" assistant that motivates users and provides visual feedback on their habit progress.
+
+## Goal
+
+Create a friendly animated character that lives on the Dashboard and Habit pages.
+
+The Habit Helper should react to user activity, celebrate progress, encourage consistency, and make the application feel more engaging without distracting from productivity.
+
+---
+
+## Habit Helper Widget
+
+Add a floating Habit Helper widget to the Dashboard.
+
+Requirements:
+
+* Small and non-intrusive
+* Expandable when clicked
+* Responsive on desktop and mobile
+* Compatible with light and dark mode
+
+Suggested character styles:
+
+* Friendly robot
+* Owl
+* Plant companion
+* Productivity mascot
+
+Use Lottie animations or Framer Motion animations.
+
+---
+
+## Animated States
+
+### Idle State
+
+When no interaction occurs:
+
+* Gentle floating animation
+* Occasional blinking
+* Small breathing effect
+
+Message examples:
+
+"Ready to tackle today's habits?"
+
+"Let's make today productive."
+
+---
+
+### New Habit Created
+
+When a user creates a habit:
+
+Animation:
+
+* Bounce animation
+* Happy expression
+
+Message:
+
+"Nice! A new habit has been added."
+
+---
+
+### Habit Completed
+
+When a habit task is completed:
+
+Animation:
+
+* Small celebration
+* Sparkle effect
+* Jump animation
+
+Message examples:
+
+"Great job!"
+
+"You're building consistency."
+
+"One step closer to your goals."
+
+---
+
+### Streak Milestone
+
+When a streak milestone is reached:
+
+Milestones:
+
+* 3 days
+* 7 days
+* 14 days
+* 30 days
+* 100 days
+
+Animation:
+
+* Excited celebration
+* Glow effect
+* Confetti burst
+
+Message examples:
+
+"🔥 7-day streak unlocked!"
+
+"You're on fire!"
+
+"Consistency is paying off."
+
+---
+
+### All Habits Completed
+
+When all daily habits are complete:
+
+Animation:
+
+* Confetti
+* Success pose
+* Floating stars
+
+Message:
+
+"Fantastic! You've completed all your habits today."
+
+---
+
+### Missed Habit Detection
+
+If a user misses habits for multiple days:
+
+Animation:
+
+* Concerned but friendly
+
+Message examples:
+
+"Haven't seen you complete this habit recently."
+
+"Small steps count. Let's get back on track."
+
+Avoid negative or guilt-inducing language.
+
+---
+
+## Progress Reactions
+
+The Habit Helper should dynamically react to:
+
+* Number of completed habits
+* Current streak
+* Completion percentage
+* Daily productivity score
+
+Examples:
+
+25% Complete:
+"Good start."
+
+50% Complete:
+"Halfway there."
+
+75% Complete:
+"Almost done."
+
+100% Complete:
+"You crushed it today!"
+
+---
+
+## Technical Requirements
+
+* Use Framer Motion for animations
+* Use Lottie animations if available
+* Performance optimized
+* State-driven animations
+* Reusable React component
+
+Component Name:
+
+HabitHelper.tsx
+
+The component should receive:
+
+* currentStreak
+* completedHabits
+* totalHabits
+* productivityScore
+
+and automatically select the appropriate animation and message.
+
+---
+
+## Success Criteria
+
+Users should feel encouraged and rewarded when using Habit Builder.
+
+The Habit Helper should:
+
+* Celebrate wins
+* Encourage consistency
+* React to progress
+* Add personality to the application
+* Remain professional and productivity-focused

@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useGetHabits,
+  useGetTasks,
   useCreateHabit,
   useUpdateHabit,
   useDeleteHabit,
@@ -14,6 +15,7 @@ import {
   getGetDashboardSummaryQueryKey,
 } from "@workspace/api-client-react";
 import type { Habit, Classification } from "@workspace/api-client-react";
+import { HabitHelper } from "@/components/habit-helper";
 import {
   Dialog,
   DialogContent,
@@ -100,9 +102,10 @@ interface HabitFormDialogProps {
   onClose: () => void;
   editHabit?: Habit | null;
   classifications: Classification[];
+  onCreated?: () => void;
 }
 
-function HabitFormDialog({ open, onClose, editHabit, classifications }: HabitFormDialogProps) {
+function HabitFormDialog({ open, onClose, editHabit, classifications, onCreated }: HabitFormDialogProps) {
   const qc = useQueryClient();
   const [form, setForm] = useState<HabitFormData>(defaultForm());
   const [error, setError] = useState("");
@@ -111,6 +114,7 @@ function HabitFormDialog({ open, onClose, editHabit, classifications }: HabitFor
     mutation: {
       onSuccess: () => {
         qc.invalidateQueries({ queryKey: getGetHabitsQueryKey() });
+        onCreated?.();
         onClose();
       },
       onError: () => setError("Failed to save habit. Please try again."),
@@ -507,18 +511,53 @@ interface HabitsTabProps {
   onToast: (msg: string) => void;
 }
 
+function computeStreak(tasks: { habitId?: number | null; status: string; deadline?: string | null }[]): number {
+  const doneDates = new Set(
+    tasks
+      .filter((t) => t.habitId != null && t.status === "DONE" && t.deadline)
+      .map((t) => t.deadline!),
+  );
+  let streak = 0;
+  const base = new Date();
+  for (let i = 0; i <= 365; i++) {
+    const d = new Date(base);
+    d.setDate(d.getDate() - i);
+    if (doneDates.has(d.toISOString().split("T")[0])) {
+      streak++;
+    } else {
+      break;
+    }
+  }
+  return streak;
+}
+
 export function HabitsTab({ onToast }: HabitsTabProps) {
   const qc = useQueryClient();
   const [formOpen, setFormOpen] = useState(false);
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
   const [deletingHabit, setDeletingHabit] = useState<Habit | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [justCreatedHabit, setJustCreatedHabit] = useState(false);
+  const justCreatedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { data: habits = [], isLoading } = useGetHabits();
   const { data: classifications = [] } = useGetClassifications();
+  const { data: tasks = [] } = useGetTasks();
 
   const allHabits = habits as Habit[];
   const allClassifications = classifications as Classification[];
+  const allTasks = tasks as { habitId?: number | null; status: string; deadline?: string | null }[];
+
+  const today = new Date().toISOString().split("T")[0];
+  const todayHabitTasks = allTasks.filter((t) => t.habitId != null && t.deadline === today);
+  const completedHabits = todayHabitTasks.filter((t) => t.status === "DONE").length;
+  const totalHabits = allHabits.filter((h) => h.isActive).length;
+  const productivityScore = totalHabits > 0 ? Math.round((completedHabits / totalHabits) * 100) : 0;
+  const currentStreak = computeStreak(allTasks);
+
+  useEffect(() => {
+    return () => { if (justCreatedTimer.current) clearTimeout(justCreatedTimer.current); };
+  }, []);
 
   const deleteHabit = useDeleteHabit({
     mutation: {
@@ -548,6 +587,12 @@ export function HabitsTab({ onToast }: HabitsTabProps) {
     } finally {
       setGenerating(false);
     }
+  }
+
+  function handleHabitCreated() {
+    setJustCreatedHabit(true);
+    if (justCreatedTimer.current) clearTimeout(justCreatedTimer.current);
+    justCreatedTimer.current = setTimeout(() => setJustCreatedHabit(false), 4000);
   }
 
   const activeCount = allHabits.filter((h) => h.isActive).length;
@@ -662,12 +707,24 @@ export function HabitsTab({ onToast }: HabitsTabProps) {
       {/* AI Habit Helper */}
       <AiHabitHelper onTasksAdded={() => onToast("Tasks added to your list!")} />
 
+      {/* Habit Helper Widget */}
+      <div className="flex justify-end">
+        <HabitHelper
+          currentStreak={currentStreak}
+          completedHabits={completedHabits}
+          totalHabits={totalHabits}
+          productivityScore={productivityScore}
+          justCreatedHabit={justCreatedHabit}
+        />
+      </div>
+
       {/* Form Dialog */}
       <HabitFormDialog
         open={formOpen}
         onClose={() => { setFormOpen(false); setEditingHabit(null); }}
         editHabit={editingHabit}
         classifications={allClassifications}
+        onCreated={handleHabitCreated}
       />
 
       {/* Delete Confirmation */}
