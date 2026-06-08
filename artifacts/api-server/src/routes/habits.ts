@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and, isNotNull } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { db, habitsTable, tasksTable, classificationsTable } from "@workspace/db";
 import {
   GetHabitsResponse,
@@ -15,6 +15,22 @@ import { requireAuth } from "../middlewares/auth";
 import { suggestTasksForGoal } from "../services/ai";
 
 const router: IRouter = Router();
+
+async function verifyClassificationOwnership(
+  classificationId: number,
+  userId: number,
+): Promise<boolean> {
+  const [row] = await db
+    .select({ id: classificationsTable.id })
+    .from(classificationsTable)
+    .where(
+      and(
+        eq(classificationsTable.id, classificationId),
+        eq(classificationsTable.userId, userId),
+      ),
+    );
+  return !!row;
+}
 
 function serializeHabit(h: typeof habitsTable.$inferSelect) {
   return {
@@ -46,6 +62,14 @@ router.post("/habits", requireAuth, async (req, res): Promise<void> => {
   }
 
   const { classificationId, ...rest } = parsed.data;
+
+  if (classificationId != null) {
+    const owned = await verifyClassificationOwnership(classificationId, userId);
+    if (!owned) {
+      res.status(403).json({ error: "Classification does not belong to you" });
+      return;
+    }
+  }
 
   const [habit] = await db
     .insert(habitsTable)
@@ -109,6 +133,15 @@ router.patch("/habits/:habitId", requireAuth, async (req, res): Promise<void> =>
   }
 
   const d = parsed.data;
+
+  if (d.classificationId != null) {
+    const owned = await verifyClassificationOwnership(d.classificationId, userId);
+    if (!owned) {
+      res.status(403).json({ error: "Classification does not belong to you" });
+      return;
+    }
+  }
+
   const updateValues: Partial<typeof habitsTable.$inferInsert> = {};
   if (d.title !== undefined)          updateValues.title            = d.title;
   if (d.description !== undefined)    updateValues.description      = d.description ?? null;
@@ -181,7 +214,12 @@ router.post("/habits/generate-today", requireAuth, async (req, res): Promise<voi
       ? await db
           .select({ name: classificationsTable.name })
           .from(classificationsTable)
-          .where(eq(classificationsTable.id, habit.classificationId))
+          .where(
+            and(
+              eq(classificationsTable.id, habit.classificationId),
+              eq(classificationsTable.userId, userId),
+            ),
+          )
           .then((rows) => rows[0]?.name ?? null)
       : null;
 
