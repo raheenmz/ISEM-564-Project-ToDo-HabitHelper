@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and, inArray } from "drizzle-orm";
-import { db, habitsTable, classificationsTable, habitSkipsTable } from "@workspace/db";
+import { db, habitsTable, tasksTable, classificationsTable, habitSkipsTable } from "@workspace/db";
 import {
   GetHabitsResponse,
   GetHabitResponse,
@@ -39,24 +39,57 @@ function todayStr(): string {
   return new Date().toISOString().split("T")[0];
 }
 
+function computeStreak(
+  doneDates: Set<string>,
+  startDate: string,
+): number {
+  let streak = 0;
+  const base = new Date();
+  let i = 0;
+  while (true) {
+    const d = new Date(base);
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toISOString().split("T")[0];
+    if (dateStr < startDate) break;
+    if (doneDates.has(dateStr)) {
+      streak++;
+      i++;
+    } else {
+      break;
+    }
+  }
+  return streak;
+}
+
 async function attachSkipData(
   habits: (typeof habitsTable.$inferSelect)[],
   userId: number,
-): Promise<(typeof habitsTable.$inferSelect & { isSkippedToday: boolean; skippedDates: string[] })[]> {
+): Promise<(typeof habitsTable.$inferSelect & { isSkippedToday: boolean; skippedDates: string[]; streak: number })[]> {
   if (habits.length === 0) return [];
 
   const today = todayStr();
   const habitIds = habits.map((h) => h.id);
 
-  const skipRows = await db
-    .select({ habitId: habitSkipsTable.habitId, skipDate: habitSkipsTable.skipDate })
-    .from(habitSkipsTable)
-    .where(
-      and(
-        eq(habitSkipsTable.userId, userId),
-        inArray(habitSkipsTable.habitId, habitIds),
+  const [skipRows, taskRows] = await Promise.all([
+    db
+      .select({ habitId: habitSkipsTable.habitId, skipDate: habitSkipsTable.skipDate })
+      .from(habitSkipsTable)
+      .where(
+        and(
+          eq(habitSkipsTable.userId, userId),
+          inArray(habitSkipsTable.habitId, habitIds),
+        ),
       ),
-    );
+    db
+      .select({ habitId: tasksTable.habitId, deadline: tasksTable.deadline, status: tasksTable.status })
+      .from(tasksTable)
+      .where(
+        and(
+          eq(tasksTable.userId, userId),
+          inArray(tasksTable.habitId, habitIds),
+        ),
+      ),
+  ]);
 
   const skipsByHabit = new Map<number, string[]>();
   for (const row of skipRows) {
@@ -65,18 +98,29 @@ async function attachSkipData(
     skipsByHabit.set(row.habitId, existing);
   }
 
+  const doneDatesByHabit = new Map<number, Set<string>>();
+  for (const row of taskRows) {
+    if (row.habitId == null || row.deadline == null || row.status !== "DONE") continue;
+    const existing = doneDatesByHabit.get(row.habitId) ?? new Set<string>();
+    existing.add(row.deadline);
+    doneDatesByHabit.set(row.habitId, existing);
+  }
+
   return habits.map((h) => {
     const skippedDates = skipsByHabit.get(h.id) ?? [];
+    const doneDates = doneDatesByHabit.get(h.id) ?? new Set<string>();
+    const streak = computeStreak(doneDates, h.startDate);
     return {
       ...h,
       isSkippedToday: skippedDates.includes(today),
       skippedDates,
+      streak,
     };
   });
 }
 
 function serializeHabit(
-  h: typeof habitsTable.$inferSelect & { isSkippedToday: boolean; skippedDates: string[] },
+  h: typeof habitsTable.$inferSelect & { isSkippedToday: boolean; skippedDates: string[]; streak: number },
 ) {
   return {
     ...h,

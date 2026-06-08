@@ -1020,6 +1020,11 @@ export function HabitsTab({ onToast }: HabitsTabProps) {
                   <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${habit.isActive ? "bg-teal-50 text-teal-700" : "bg-slate-100 text-slate-500"}`}>
                     {habit.isActive ? "Active" : "Paused"}
                   </span>
+                  <span className={`text-xs px-2.5 py-0.5 rounded-full font-semibold flex items-center gap-1 ${
+                    habit.streak > 0 ? "bg-orange-50 text-orange-600" : "bg-slate-100 text-slate-400"
+                  }`}>
+                    🔥 {habit.streak} day{habit.streak !== 1 ? "s" : ""}
+                  </span>
                   {isSkippedToday && habit.isActive && (
                     <span className="text-xs px-2.5 py-0.5 rounded-full font-medium bg-amber-100 text-amber-700 flex items-center gap-1">
                       <SkipForward className="w-2.5 h-2.5" /> Skipped today

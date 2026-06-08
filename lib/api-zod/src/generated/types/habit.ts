@@ -21,6 +21,7 @@ export interface Habit {
   isActive: boolean;
   isSkippedToday: boolean;
   skippedDates: string[];
+  streak: number;
   createdAt: string;
   updatedAt: string;
 }

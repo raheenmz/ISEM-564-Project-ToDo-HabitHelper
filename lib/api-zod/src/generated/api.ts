@@ -482,6 +482,7 @@ export const GetHabitsResponseItem = zod.object({
   "isActive": zod.boolean(),
   "isSkippedToday": zod.boolean(),
   "skippedDates": zod.array(zod.string()),
+  "streak": zod.number(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -523,6 +524,7 @@ export const GetHabitResponse = zod.object({
   "isActive": zod.boolean(),
   "isSkippedToday": zod.boolean(),
   "skippedDates": zod.array(zod.string()),
+  "streak": zod.number(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
