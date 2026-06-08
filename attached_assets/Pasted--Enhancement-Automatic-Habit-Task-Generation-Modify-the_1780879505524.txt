@@ -1,0 +1,202 @@
+# Enhancement: Automatic Habit Task Generation
+
+Modify the Basic Habit Builder feature so that users do NOT need to manually generate habit tasks each day.
+
+Instead, habit tasks should be automatically generated when a user logs in or accesses the Dashboard for the first time each day.
+
+---
+
+## Goal
+
+Create a seamless experience where active habits automatically appear as tasks for the current day.
+
+Users should never need to remember to generate their daily habits.
+
+---
+
+## Trigger Points
+
+Automatically run habit generation when:
+
+### Option 1 (Required)
+
+User successfully logs in.
+
+### Option 2 (Required)
+
+User opens the Dashboard.
+
+If generation has already been performed for today, do nothing.
+
+---
+
+## Backend Service
+
+Create a reusable service:
+
+```javascript
+generateDailyHabitTasks(userId)
+```
+
+This service should:
+
+1. Retrieve all active habits for the user.
+2. Check whether today's task already exists for each habit.
+3. Create missing tasks.
+4. Skip tasks that already exist.
+5. Return summary statistics.
+
+Example response:
+
+```json
+{
+  "generated": 3,
+  "skipped": 5
+}
+```
+
+---
+
+## Generation Rules
+
+For every active habit:
+
+Conditions:
+
+* active = true
+* start_date <= current_date
+
+Create a task only if one does not already exist for today.
+
+---
+
+## Generated Task Mapping
+
+Task Title = Habit Title
+
+Task Description = Habit Description
+
+Priority = Habit Priority
+
+Classification = Habit Classification
+
+Status = "To Do"
+
+Due Date = Today
+
+habit_id = Habit ID
+
+created_by = Current User
+
+---
+
+## Duplicate Prevention
+
+Implement duplicate prevention at both levels.
+
+### Backend Validation
+
+Before creating a task:
+
+Check whether:
+
+```sql
+habit_id = current_habit
+AND due_date = current_date
+```
+
+exists.
+
+If yes:
+
+Skip creation.
+
+---
+
+### Database Constraint
+
+Add a unique constraint:
+
+```sql
+UNIQUE(habit_id, due_date)
+```
+
+This guarantees that duplicate tasks can never be created.
+
+---
+
+## Dashboard Behavior
+
+When Dashboard loads:
+
+1. Call automatic habit generation endpoint.
+2. Generate any missing habit tasks.
+3. Refresh task data.
+4. Display newly generated tasks immediately.
+
+The user should see today's habit tasks appear automatically.
+
+---
+
+## Login Flow
+
+After successful authentication:
+
+1. User session created.
+2. Run generateDailyHabitTasks(userId).
+3. Continue normal login flow.
+4. Return user to dashboard.
+
+No popups required.
+
+---
+
+## Optional Success Message
+
+Display a small toast notification:
+
+Examples:
+
+"3 habit tasks generated for today."
+
+"Your daily habits are ready."
+
+Only show if new tasks were created.
+
+---
+
+## API Endpoint
+
+Create:
+
+POST /api/habits/auto-generate
+
+This endpoint should:
+
+* Require authentication
+* Generate today's habit tasks
+* Return generation summary
+
+---
+
+## Performance Requirements
+
+The generation process should:
+
+* Complete in a single database transaction
+* Run quickly even with hundreds of habits
+* Never generate duplicate tasks
+* Be safe to call multiple times per day
+
+---
+
+## Success Criteria
+
+When a user logs in or opens the dashboard:
+
+* Active habits automatically generate today's tasks.
+* Existing habit tasks are not duplicated.
+* Generated tasks appear in all task views.
+* No manual button click is required.
+* The process is invisible and automatic.
+* The system remains idempotent (safe to run repeatedly).
