@@ -660,7 +660,12 @@ export function HabitsTab({ onToast }: HabitsTabProps) {
   const handleToggleHabitComplete = useCallback(async (habitId: number) => {
     const task = allTasks.find((t) => t.habitId === habitId && t.deadline === today);
     if (!task) return;
-    const newStatus = task.status === "DONE" ? "TODO" : "DONE";
+    const cycle: Record<string, "TODO" | "IN_PROGRESS" | "DONE"> = {
+      "TODO": "IN_PROGRESS",
+      "IN_PROGRESS": "DONE",
+      "DONE": "TODO",
+    };
+    const newStatus = cycle[task.status] ?? "TODO";
     if (newStatus === "DONE") {
       setCompletingHabitIds((prev) => new Set(prev).add(habitId));
       setTimeout(() => {
@@ -797,32 +802,40 @@ export function HabitsTab({ onToast }: HabitsTabProps) {
 
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-start gap-2.5 flex-1 min-w-0">
-                    {/* Completion toggle */}
+                    {/* 3-state completion toggle: Not Started → In Progress → Complete → Not Started */}
                     {hasTodayTask && habit.isActive && (
                       <motion.button
                         onClick={() => handleToggleHabitComplete(habit.id)}
                         className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
-                          isDone
+                          todayTask?.status === "DONE"
                             ? "bg-teal-500 border-teal-500 text-white"
+                            : todayTask?.status === "IN_PROGRESS"
+                            ? "bg-sky-200 border-sky-400"
                             : "border-slate-300 hover:border-teal-400"
                         }`}
                         whileTap={{ scale: 0.85 }}
                         animate={isDone ? { scale: [1, 1.25, 1] } : { scale: 1 }}
                         transition={{ duration: 0.3 }}
-                        title={isDone ? "Mark as incomplete" : "Mark as done for today"}
+                        title={
+                          todayTask?.status === "DONE"        ? "Complete — click to reset"
+                          : todayTask?.status === "IN_PROGRESS" ? "In Progress — click to complete"
+                          : "Not Started — click to start"
+                        }
                       >
                         <AnimatePresence mode="wait">
-                          {isDone && (
-                            <motion.svg
-                              key="check"
-                              width="10" height="10" viewBox="0 0 10 10"
-                              initial={{ scale: 0, opacity: 0 }}
-                              animate={{ scale: 1, opacity: 1 }}
-                              exit={{ scale: 0, opacity: 0 }}
-                              transition={{ duration: 0.2 }}
+                          {todayTask?.status === "DONE" && (
+                            <motion.svg key="check" width="10" height="10" viewBox="0 0 10 10"
+                              initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                              exit={{ scale: 0, opacity: 0 }} transition={{ duration: 0.2 }}
                             >
                               <polyline points="1.5,5.5 4,8 8.5,2" stroke="white" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
                             </motion.svg>
+                          )}
+                          {todayTask?.status === "IN_PROGRESS" && (
+                            <motion.div key="dash" className="w-2 h-0.5 rounded-full bg-sky-600"
+                              initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                              exit={{ scale: 0, opacity: 0 }} transition={{ duration: 0.15 }}
+                            />
                           )}
                         </AnimatePresence>
                       </motion.button>
@@ -868,6 +881,18 @@ export function HabitsTab({ onToast }: HabitsTabProps) {
                   <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${habit.isActive ? "bg-teal-50 text-teal-700" : "bg-slate-100 text-slate-500"}`}>
                     {habit.isActive ? "Active" : "Paused"}
                   </span>
+                  {/* Habit status badge */}
+                  {hasTodayTask && habit.isActive && (
+                    <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${
+                      todayTask?.status === "DONE"        ? "bg-teal-100 text-teal-700"
+                      : todayTask?.status === "IN_PROGRESS" ? "bg-sky-100 text-sky-700"
+                      : "bg-slate-100 text-slate-500"
+                    }`}>
+                      {todayTask?.status === "DONE" ? "✓ Complete"
+                        : todayTask?.status === "IN_PROGRESS" ? "In Progress"
+                        : "Not Started"}
+                    </span>
+                  )}
                   {!hasTodayTask && habit.isActive && (
                     <span className="text-xs text-slate-400 italic">Generate tasks to track today</span>
                   )}

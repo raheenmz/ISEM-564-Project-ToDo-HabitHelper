@@ -23,6 +23,7 @@ import { TaskFormDialog } from "@/components/task-form-dialog";
 import { CreateGroupDialog } from "@/components/create-group-dialog";
 import { CalendarView } from "@/components/calendar-view";
 import { HabitsTab } from "@/components/habits-tab";
+import { HabitDashboardWidget } from "@/components/habit-dashboard-widget";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -640,6 +641,26 @@ export default function Dashboard() {
   const allTasks = tasks as Task[];
   const allGroups = groups as Group[];
 
+  const habitTasksToday     = useMemo(() => allTasks.filter((t) => (t as Task & { habitId?: number | null }).habitId != null && t.deadline === today), [allTasks, today]);
+  const completedHabitsToday = useMemo(() => habitTasksToday.filter((t) => t.status === "DONE").length, [habitTasksToday]);
+  const totalHabitsToday     = habitTasksToday.length;
+  const habitStreak          = useMemo(() => {
+    const doneDates = new Set(
+      allTasks
+        .filter((t) => (t as Task & { habitId?: number | null }).habitId != null && t.status === "DONE" && t.deadline)
+        .map((t) => t.deadline!),
+    );
+    let streak = 0;
+    const base = new Date();
+    for (let i = 0; i <= 365; i++) {
+      const d = new Date(base);
+      d.setDate(d.getDate() - i);
+      if (doneDates.has(d.toISOString().split("T")[0])) streak++;
+      else break;
+    }
+    return streak;
+  }, [allTasks]);
+
   const todayTasks      = useMemo(() => sortTasks(allTasks.filter((t) => t.deadline === today && t.status !== "DONE")), [allTasks, today]);
   const todoTasks       = useMemo(() => sortTasks(allTasks.filter((t) => t.status === "TODO")), [allTasks]);
   const inProgressTasks = useMemo(() => sortTasks(allTasks.filter((t) => t.status === "IN_PROGRESS")), [allTasks]);
@@ -767,10 +788,18 @@ export default function Dashboard() {
       <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-6 space-y-6">
 
         {/* ── Greeting + Quote ── */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div className="bg-white rounded-2xl px-6 py-5 shadow-sm border border-slate-100 flex-1">
             <h2 className="text-2xl font-bold text-slate-800 mb-1">Hey there, {user.name} 👋</h2>
             <p className="text-slate-500 italic text-sm">"{quote}"</p>
+          </div>
+          <div className="sm:w-72 flex-shrink-0">
+            <HabitDashboardWidget
+              completedHabits={completedHabitsToday}
+              totalHabits={totalHabitsToday}
+              currentStreak={habitStreak}
+              onClick={() => setActiveSection("habits")}
+            />
           </div>
           <button
             onClick={openCreate}
