@@ -21,7 +21,7 @@ import {
 import type { Habit, Classification } from "@workspace/api-client-react";
 import { HabitHelper } from "@/components/habit-helper";
 import { HabitProgressRing, HabitStreakBadge } from "@/components/habit-progress-ring";
-import { HabitPlantWidget, HabitCelebrationModal } from "@/components/habit-plant-widget";
+import { HabitCelebrationModal } from "@/components/habit-plant-widget";
 import { HabitHeatmap } from "@/components/habit-heatmap";
 import {
   Dialog,
@@ -1088,9 +1088,6 @@ export function HabitsTab({ onToast }: HabitsTabProps) {
           })}
         </div>
       )}
-
-      {/* Plant Widget */}
-      <HabitPlantWidget streak={currentStreak} />
 
       {/* AI Habit Helper */}
       <AiHabitHelper onTasksAdded={() => onToast("Tasks added to your list!")} />
