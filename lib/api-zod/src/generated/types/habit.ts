@@ -19,6 +19,8 @@ export interface Habit {
   recurrenceType: string;
   startDate: string;
   isActive: boolean;
+  isSkippedToday: boolean;
+  skippedDates: string[];
   createdAt: string;
   updatedAt: string;
 }

@@ -480,6 +480,8 @@ export const GetHabitsResponseItem = zod.object({
   "recurrenceType": zod.string(),
   "startDate": zod.string(),
   "isActive": zod.boolean(),
+  "isSkippedToday": zod.boolean(),
+  "skippedDates": zod.array(zod.string()),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -519,6 +521,8 @@ export const GetHabitResponse = zod.object({
   "recurrenceType": zod.string(),
   "startDate": zod.string(),
   "isActive": zod.boolean(),
+  "isSkippedToday": zod.boolean(),
+  "skippedDates": zod.array(zod.string()),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -553,6 +557,8 @@ export const UpdateHabitResponse = zod.object({
   "recurrenceType": zod.string(),
   "startDate": zod.string(),
   "isActive": zod.boolean(),
+  "isSkippedToday": zod.boolean(),
+  "skippedDates": zod.array(zod.string()),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -562,6 +568,27 @@ export const UpdateHabitResponse = zod.object({
  * @summary Delete a habit
  */
 export const DeleteHabitParams = zod.object({
+  "habitId": zod.coerce.number()
+})
+
+
+/**
+ * @summary Skip a habit for today without breaking streak
+ */
+export const SkipHabitTodayParams = zod.object({
+  "habitId": zod.coerce.number()
+})
+
+export const SkipHabitTodayResponse = zod.object({
+  "habitId": zod.number(),
+  "skipDate": zod.string()
+})
+
+
+/**
+ * @summary Remove the skip for today so the habit generates a task again
+ */
+export const UnskipHabitTodayParams = zod.object({
   "habitId": zod.coerce.number()
 })
 

@@ -273,8 +273,15 @@ export interface Habit {
   recurrenceType: string;
   startDate: string;
   isActive: boolean;
+  isSkippedToday: boolean;
+  skippedDates: string[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface SkipTodayResult {
+  habitId: number;
+  skipDate: string;
 }
 
 export type HabitInputPriority = typeof HabitInputPriority[keyof typeof HabitInputPriority];

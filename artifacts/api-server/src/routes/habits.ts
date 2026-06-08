@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq, and } from "drizzle-orm";
-import { db, habitsTable, classificationsTable } from "@workspace/db";
+import { eq, and, inArray } from "drizzle-orm";
+import { db, habitsTable, classificationsTable, habitSkipsTable } from "@workspace/db";
 import {
   GetHabitsResponse,
   GetHabitResponse,
@@ -10,6 +10,8 @@ import {
   UpdateHabitParams,
   DeleteHabitParams,
   AiSuggestHabitTasksBody,
+  SkipHabitTodayParams,
+  UnskipHabitTodayParams,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/auth";
 import { suggestTasksForGoal } from "../services/ai";
@@ -33,7 +35,49 @@ async function verifyClassificationOwnership(
   return !!row;
 }
 
-function serializeHabit(h: typeof habitsTable.$inferSelect) {
+function todayStr(): string {
+  return new Date().toISOString().split("T")[0];
+}
+
+async function attachSkipData(
+  habits: (typeof habitsTable.$inferSelect)[],
+  userId: number,
+): Promise<(typeof habitsTable.$inferSelect & { isSkippedToday: boolean; skippedDates: string[] })[]> {
+  if (habits.length === 0) return [];
+
+  const today = todayStr();
+  const habitIds = habits.map((h) => h.id);
+
+  const skipRows = await db
+    .select({ habitId: habitSkipsTable.habitId, skipDate: habitSkipsTable.skipDate })
+    .from(habitSkipsTable)
+    .where(
+      and(
+        eq(habitSkipsTable.userId, userId),
+        inArray(habitSkipsTable.habitId, habitIds),
+      ),
+    );
+
+  const skipsByHabit = new Map<number, string[]>();
+  for (const row of skipRows) {
+    const existing = skipsByHabit.get(row.habitId) ?? [];
+    existing.push(row.skipDate);
+    skipsByHabit.set(row.habitId, existing);
+  }
+
+  return habits.map((h) => {
+    const skippedDates = skipsByHabit.get(h.id) ?? [];
+    return {
+      ...h,
+      isSkippedToday: skippedDates.includes(today),
+      skippedDates,
+    };
+  });
+}
+
+function serializeHabit(
+  h: typeof habitsTable.$inferSelect & { isSkippedToday: boolean; skippedDates: string[] },
+) {
   return {
     ...h,
     createdAt: h.createdAt.toISOString(),
@@ -50,7 +94,8 @@ router.get("/habits", requireAuth, async (req, res): Promise<void> => {
     .where(eq(habitsTable.userId, userId))
     .orderBy(habitsTable.createdAt);
 
-  res.json(GetHabitsResponse.parse(rows.map(serializeHabit)));
+  const enriched = await attachSkipData(rows, userId);
+  res.json(GetHabitsResponse.parse(enriched.map(serializeHabit)));
 });
 
 router.post("/habits", requireAuth, async (req, res): Promise<void> => {
@@ -83,7 +128,8 @@ router.post("/habits", requireAuth, async (req, res): Promise<void> => {
     })
     .returning();
 
-  res.status(201).json(GetHabitResponse.parse(serializeHabit(habit)));
+  const [enriched] = await attachSkipData([habit], userId);
+  res.status(201).json(GetHabitResponse.parse(serializeHabit(enriched)));
 });
 
 router.get("/habits/:habitId", requireAuth, async (req, res): Promise<void> => {
@@ -105,7 +151,8 @@ router.get("/habits/:habitId", requireAuth, async (req, res): Promise<void> => {
     return;
   }
 
-  res.json(GetHabitResponse.parse(serializeHabit(habit)));
+  const [enriched] = await attachSkipData([habit], userId);
+  res.json(GetHabitResponse.parse(serializeHabit(enriched)));
 });
 
 router.patch("/habits/:habitId", requireAuth, async (req, res): Promise<void> => {
@@ -157,7 +204,8 @@ router.patch("/habits/:habitId", requireAuth, async (req, res): Promise<void> =>
     .where(and(eq(habitsTable.id, params.data.habitId), eq(habitsTable.userId, userId)))
     .returning();
 
-  res.json(GetHabitResponse.parse(serializeHabit(updated)));
+  const [enriched] = await attachSkipData([updated], userId);
+  res.json(GetHabitResponse.parse(serializeHabit(enriched)));
 });
 
 router.delete("/habits/:habitId", requireAuth, async (req, res): Promise<void> => {
@@ -178,6 +226,67 @@ router.delete("/habits/:habitId", requireAuth, async (req, res): Promise<void> =
     res.status(404).json({ error: "Habit not found" });
     return;
   }
+
+  res.sendStatus(204);
+});
+
+router.post("/habits/:habitId/skip-today", requireAuth, async (req, res): Promise<void> => {
+  const userId = req.session.userId!;
+  const today = todayStr();
+
+  const params = SkipHabitTodayParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+
+  const [habit] = await db
+    .select({ id: habitsTable.id })
+    .from(habitsTable)
+    .where(and(eq(habitsTable.id, params.data.habitId), eq(habitsTable.userId, userId)));
+
+  if (!habit) {
+    res.status(404).json({ error: "Habit not found" });
+    return;
+  }
+
+  await db
+    .insert(habitSkipsTable)
+    .values({ habitId: habit.id, userId, skipDate: today })
+    .onConflictDoNothing();
+
+  res.json({ habitId: habit.id, skipDate: today });
+});
+
+router.delete("/habits/:habitId/skip-today", requireAuth, async (req, res): Promise<void> => {
+  const userId = req.session.userId!;
+  const today = todayStr();
+
+  const params = UnskipHabitTodayParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+
+  const [habit] = await db
+    .select({ id: habitsTable.id })
+    .from(habitsTable)
+    .where(and(eq(habitsTable.id, params.data.habitId), eq(habitsTable.userId, userId)));
+
+  if (!habit) {
+    res.status(404).json({ error: "Habit not found" });
+    return;
+  }
+
+  await db
+    .delete(habitSkipsTable)
+    .where(
+      and(
+        eq(habitSkipsTable.habitId, habit.id),
+        eq(habitSkipsTable.userId, userId),
+        eq(habitSkipsTable.skipDate, today),
+      ),
+    );
 
   res.sendStatus(204);
 });

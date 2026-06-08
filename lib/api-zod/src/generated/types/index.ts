@@ -32,6 +32,7 @@ export * from './habitUpdate';
 export * from './habitUpdatePriority';
 export * from './healthStatus';
 export * from './loginInput';
+export * from './skipTodayResult';
 export * from './subtask';
 export * from './subtaskInput';
 export * from './subtaskUpdate';

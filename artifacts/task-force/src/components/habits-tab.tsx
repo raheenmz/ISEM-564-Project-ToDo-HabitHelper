@@ -12,6 +12,8 @@ import {
   useAiSuggestHabitTasks,
   useCreateTask,
   useGetClassifications,
+  useSkipHabitToday,
+  useUnskipHabitToday,
   getGetHabitsQueryKey,
   getGetTasksQueryKey,
   getGetDashboardSummaryQueryKey,
@@ -61,6 +63,7 @@ import {
   Square,
   Trash2,
   Zap,
+  SkipForward,
 } from "lucide-react";
 
 const PRIORITY_OPTIONS = [
@@ -570,18 +573,23 @@ interface HabitsTabProps {
   onToast: (msg: string) => void;
 }
 
-function computeStreak(tasks: { habitId?: number | null; status: string; deadline?: string | null }[]): number {
+function computeStreak(
+  tasks: { habitId?: number | null; status: string; deadline?: string | null }[],
+  allSkippedDates: string[],
+): number {
   const doneDates = new Set(
     tasks
       .filter((t) => t.habitId != null && t.status === "DONE" && t.deadline)
       .map((t) => t.deadline!),
   );
+  const skippedSet = new Set(allSkippedDates);
   let streak = 0;
   const base = new Date();
   for (let i = 0; i <= 365; i++) {
     const d = new Date(base);
     d.setDate(d.getDate() - i);
-    if (doneDates.has(d.toISOString().split("T")[0])) {
+    const dateStr = d.toISOString().split("T")[0];
+    if (doneDates.has(dateStr) || skippedSet.has(dateStr)) {
       streak++;
     } else {
       break;
@@ -613,18 +621,28 @@ export function HabitsTab({ onToast }: HabitsTabProps) {
   const allTasks = tasks as FullTask[];
 
   const today = new Date().toISOString().split("T")[0];
+
+  const allSkippedDates = Array.from(
+    new Set(allHabits.flatMap((h) => (h as Habit & { skippedDates: string[] }).skippedDates ?? [])),
+  );
+
   const todayHabitTasks = allTasks.filter((t) => t.habitId != null && t.deadline === today);
+  const activeHabits = allHabits.filter((h) => h.isActive);
+  const skippedTodayCount = activeHabits.filter(
+    (h) => (h as Habit & { isSkippedToday: boolean }).isSkippedToday,
+  ).length;
   const completedHabits = todayHabitTasks.filter((t) => t.status === "DONE").length;
-  const totalHabits = allHabits.filter((h) => h.isActive).length;
-  const productivityScore = totalHabits > 0 ? Math.round((completedHabits / totalHabits) * 100) : 0;
-  const currentStreak = computeStreak(allTasks);
+  const totalHabits = activeHabits.length;
+  const productivityScore = totalHabits > 0 ? Math.round(((completedHabits + skippedTodayCount) / totalHabits) * 100) : 0;
+  const currentStreak = computeStreak(allTasks, allSkippedDates);
 
   useEffect(() => {
     return () => { if (justCreatedTimer.current) clearTimeout(justCreatedTimer.current); };
   }, []);
 
   useEffect(() => {
-    if (totalHabits > 0 && completedHabits === totalHabits) {
+    const effectivelyDone = completedHabits + skippedTodayCount;
+    if (totalHabits > 0 && effectivelyDone === totalHabits) {
       const alreadyShown = sessionStorage.getItem(celebrationShownKey);
       if (!alreadyShown) {
         const t = setTimeout(() => {
@@ -635,7 +653,7 @@ export function HabitsTab({ onToast }: HabitsTabProps) {
       }
     }
     return undefined;
-  }, [completedHabits, totalHabits, celebrationShownKey]);
+  }, [completedHabits, skippedTodayCount, totalHabits, celebrationShownKey]);
 
   const updateTask = useUpdateTask({
     mutation: {
@@ -652,6 +670,25 @@ export function HabitsTab({ onToast }: HabitsTabProps) {
         qc.invalidateQueries({ queryKey: getGetHabitsQueryKey() });
         setDeletingHabit(null);
       },
+    },
+  });
+
+  const skipHabit = useSkipHabitToday({
+    mutation: {
+      onSuccess: () => {
+        qc.invalidateQueries({ queryKey: getGetHabitsQueryKey() });
+        onToast("Habit skipped for today — your streak is safe!");
+      },
+      onError: () => onToast("Failed to skip habit"),
+    },
+  });
+
+  const unskipHabit = useUnskipHabitToday({
+    mutation: {
+      onSuccess: () => {
+        qc.invalidateQueries({ queryKey: getGetHabitsQueryKey() });
+      },
+      onError: () => onToast("Failed to remove skip"),
     },
   });
 
@@ -778,12 +815,15 @@ export function HabitsTab({ onToast }: HabitsTabProps) {
             const isDone = todayTask?.status === "DONE";
             const isCompleting = completingHabitIds.has(habit.id);
             const hasTodayTask = !!todayTask;
+            const isSkippedToday = (habit as Habit & { isSkippedToday: boolean }).isSkippedToday;
             return (
               <motion.div
                 key={habit.id}
                 layout
                 className={`bg-white rounded-2xl p-5 border shadow-sm flex flex-col gap-3 group transition-colors relative overflow-visible ${
-                  isDone
+                  isSkippedToday
+                    ? "border-amber-200 bg-amber-50/30"
+                    : isDone
                     ? "border-teal-200 bg-teal-50/40"
                     : habit.isActive
                     ? "border-slate-100"
@@ -794,16 +834,44 @@ export function HabitsTab({ onToast }: HabitsTabProps) {
                 <FloatingSuccess visible={isCompleting} />
 
                 <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${habit.isActive ? "bg-teal-400" : "bg-slate-300"}`} />
-                      <h4 className="font-semibold text-sm leading-snug text-slate-800">{habit.title}</h4>
-                    </div>
-                    {habit.description && (
-                      <p className="text-xs text-slate-400 leading-relaxed line-clamp-2">{habit.description}</p>
+                  <div className="flex items-start gap-2.5 flex-1 min-w-0">
+                    {isSkippedToday && habit.isActive && (
+                      <div className="mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 border-amber-400 bg-amber-100 flex items-center justify-center" title="Skipped today">
+                        <SkipForward className="w-2.5 h-2.5 text-amber-600" />
+                      </div>
                     )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${isSkippedToday ? "bg-amber-400" : habit.isActive ? "bg-teal-400" : "bg-slate-300"}`} />
+                        <h4 className={`font-semibold text-sm leading-snug ${isDone ? "line-through text-slate-400" : isSkippedToday ? "text-amber-800" : "text-slate-800"}`}>
+                          {habit.title}
+                        </h4>
+                      </div>
+                      {habit.description && (
+                        <p className="text-xs text-slate-400 leading-relaxed line-clamp-2">{habit.description}</p>
+                      )}
+                    </div>
                   </div>
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                    {habit.isActive && !isDone && (
+                      <button
+                        onClick={() => {
+                          if (isSkippedToday) {
+                            unskipHabit.mutate({ habitId: habit.id });
+                          } else {
+                            skipHabit.mutate({ habitId: habit.id });
+                          }
+                        }}
+                        className={`p-1.5 rounded-lg transition-colors ${
+                          isSkippedToday
+                            ? "text-amber-500 hover:text-amber-700 hover:bg-amber-50"
+                            : "text-slate-300 hover:text-amber-500 hover:bg-amber-50"
+                        }`}
+                        title={isSkippedToday ? "Remove skip for today" : "Skip today (keeps streak)"}
+                      >
+                        <SkipForward className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                     <button
                       onClick={() => { setEditingHabit(habit); setFormOpen(true); }}
                       className="text-slate-300 hover:text-teal-500 p-1.5 rounded-lg hover:bg-teal-50 transition-colors"
@@ -832,13 +900,28 @@ export function HabitsTab({ onToast }: HabitsTabProps) {
                   <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${habit.isActive ? "bg-teal-50 text-teal-700" : "bg-slate-100 text-slate-500"}`}>
                     {habit.isActive ? "Active" : "Paused"}
                   </span>
+                  {isSkippedToday && habit.isActive && (
+                    <span className="text-xs px-2.5 py-0.5 rounded-full font-medium bg-amber-100 text-amber-700 flex items-center gap-1">
+                      <SkipForward className="w-2.5 h-2.5" /> Skipped today
+                    </span>
+                  )}
+                  {!isSkippedToday && hasTodayTask && habit.isActive && (
+                    <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${
+                      isDone ? "bg-teal-100 text-teal-700" : "bg-slate-100 text-slate-500"
+                    }`}>
+                      {isDone ? "✓ Complete" : "Not Started"}
+                    </span>
+                  )}
+                  {!isSkippedToday && !hasTodayTask && habit.isActive && (
+                    <span className="text-xs text-slate-400 italic">Generate tasks to track today</span>
+                  )}
                   <span className="text-xs text-slate-400 flex items-center gap-1 ml-auto">
                     <CalendarDays className="w-3 h-3" /> since {habit.startDate}
                   </span>
                 </div>
 
-                {/* Mark Complete button */}
-                {habit.isActive && hasTodayTask && (
+                {/* Mark Complete button — hidden when skipped */}
+                {habit.isActive && hasTodayTask && !isSkippedToday && (
                   <AnimatePresence mode="wait">
                     {isDone ? (
                       <motion.div

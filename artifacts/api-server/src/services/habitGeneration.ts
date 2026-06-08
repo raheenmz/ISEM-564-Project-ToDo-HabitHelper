@@ -1,5 +1,5 @@
-import { and, eq, lte } from "drizzle-orm";
-import { db, habitsTable, tasksTable, classificationsTable } from "@workspace/db";
+import { and, eq, lte, inArray } from "drizzle-orm";
+import { db, habitsTable, tasksTable, classificationsTable, habitSkipsTable } from "@workspace/db";
 
 export interface HabitGenerationResult {
   generated: number;
@@ -21,10 +21,34 @@ export async function generateDailyHabitTasks(userId: number): Promise<HabitGene
         ),
       );
 
+    if (activeHabits.length === 0) {
+      return { generated: 0, skipped: 0 };
+    }
+
+    const habitIds = activeHabits.map((h) => h.id);
+
+    const skippedToday = await tx
+      .select({ habitId: habitSkipsTable.habitId })
+      .from(habitSkipsTable)
+      .where(
+        and(
+          eq(habitSkipsTable.userId, userId),
+          eq(habitSkipsTable.skipDate, today),
+          inArray(habitSkipsTable.habitId, habitIds),
+        ),
+      );
+
+    const skippedHabitIds = new Set(skippedToday.map((r) => r.habitId));
+
     let generated = 0;
     let skipped = 0;
 
     for (const habit of activeHabits) {
+      if (skippedHabitIds.has(habit.id)) {
+        skipped++;
+        continue;
+      }
+
       const existing = await tx
         .select({ id: tasksTable.id })
         .from(tasksTable)

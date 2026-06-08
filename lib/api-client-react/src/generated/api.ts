@@ -36,6 +36,7 @@ import type {
   HabitUpdate,
   HealthStatus,
   LoginInput,
+  SkipTodayResult,
   Subtask,
   SubtaskInput,
   SubtaskUpdate,
@@ -2331,6 +2332,146 @@ export const useDeleteHabit = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getDeleteHabitMutationOptions(options));
+    }
+
+export const getSkipHabitTodayUrl = (habitId: number,) => {
+
+
+
+
+  return `/api/habits/${habitId}/skip-today`
+}
+
+/**
+ * @summary Skip a habit for today without breaking streak
+ */
+export const skipHabitToday = async (habitId: number, options?: RequestInit): Promise<SkipTodayResult> => {
+
+  return customFetch<SkipTodayResult>(getSkipHabitTodayUrl(habitId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getSkipHabitTodayMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof skipHabitToday>>, TError,{habitId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof skipHabitToday>>, TError,{habitId: number}, TContext> => {
+
+const mutationKey = ['skipHabitToday'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof skipHabitToday>>, {habitId: number}> = (props) => {
+          const {habitId} = props ?? {};
+
+          return  skipHabitToday(habitId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SkipHabitTodayMutationResult = NonNullable<Awaited<ReturnType<typeof skipHabitToday>>>
+
+    export type SkipHabitTodayMutationError = ErrorType<void>
+
+    /**
+ * @summary Skip a habit for today without breaking streak
+ */
+export const useSkipHabitToday = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof skipHabitToday>>, TError,{habitId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof skipHabitToday>>,
+        TError,
+        {habitId: number},
+        TContext
+      > => {
+      return useMutation(getSkipHabitTodayMutationOptions(options));
+    }
+
+export const getUnskipHabitTodayUrl = (habitId: number,) => {
+
+
+
+
+  return `/api/habits/${habitId}/skip-today`
+}
+
+/**
+ * @summary Remove the skip for today so the habit generates a task again
+ */
+export const unskipHabitToday = async (habitId: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getUnskipHabitTodayUrl(habitId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getUnskipHabitTodayMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unskipHabitToday>>, TError,{habitId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof unskipHabitToday>>, TError,{habitId: number}, TContext> => {
+
+const mutationKey = ['unskipHabitToday'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof unskipHabitToday>>, {habitId: number}> = (props) => {
+          const {habitId} = props ?? {};
+
+          return  unskipHabitToday(habitId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UnskipHabitTodayMutationResult = NonNullable<Awaited<ReturnType<typeof unskipHabitToday>>>
+
+    export type UnskipHabitTodayMutationError = ErrorType<void>
+
+    /**
+ * @summary Remove the skip for today so the habit generates a task again
+ */
+export const useUnskipHabitToday = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unskipHabitToday>>, TError,{habitId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof unskipHabitToday>>,
+        TError,
+        {habitId: number},
+        TContext
+      > => {
+      return useMutation(getUnskipHabitTodayMutationOptions(options));
     }
 
 export const getGenerateTodayHabitTasksUrl = () => {

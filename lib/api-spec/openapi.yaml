@@ -632,6 +632,42 @@ paths:
         "404":
           description: Habit not found
 
+  /habits/{habitId}/skip-today:
+    post:
+      operationId: skipHabitToday
+      tags: [habits]
+      summary: Skip a habit for today without breaking streak
+      parameters:
+        - name: habitId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Habit skipped for today
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SkipTodayResult"
+        "404":
+          description: Habit not found
+    delete:
+      operationId: unskipHabitToday
+      tags: [habits]
+      summary: Remove the skip for today so the habit generates a task again
+      parameters:
+        - name: habitId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Skip removed
+        "404":
+          description: Habit not found
+
   /habits/generate-today:
     post:
       operationId: generateTodayHabitTasks
@@ -1061,6 +1097,12 @@ components:
           type: string
         isActive:
           type: boolean
+        isSkippedToday:
+          type: boolean
+        skippedDates:
+          type: array
+          items:
+            type: string
         createdAt:
           type: string
         updatedAt:
@@ -1073,8 +1115,21 @@ components:
         - recurrenceType
         - startDate
         - isActive
+        - isSkippedToday
+        - skippedDates
         - createdAt
         - updatedAt
+
+    SkipTodayResult:
+      type: object
+      properties:
+        habitId:
+          type: integer
+        skipDate:
+          type: string
+      required:
+        - habitId
+        - skipDate
 
     HabitInput:
       type: object
