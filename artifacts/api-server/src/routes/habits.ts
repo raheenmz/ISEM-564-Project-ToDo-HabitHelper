@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
-import { db, habitsTable, tasksTable, classificationsTable } from "@workspace/db";
+import { db, habitsTable, classificationsTable } from "@workspace/db";
 import {
   GetHabitsResponse,
   GetHabitResponse,
@@ -13,6 +13,7 @@ import {
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/auth";
 import { suggestTasksForGoal } from "../services/ai";
+import { generateDailyHabitTasks } from "../services/habitGeneration";
 
 const router: IRouter = Router();
 
@@ -183,63 +184,14 @@ router.delete("/habits/:habitId", requireAuth, async (req, res): Promise<void> =
 
 router.post("/habits/generate-today", requireAuth, async (req, res): Promise<void> => {
   const userId = req.session.userId!;
-  const today = new Date().toISOString().split("T")[0];
+  const result = await generateDailyHabitTasks(userId);
+  res.json(result);
+});
 
-  const activeHabits = await db
-    .select()
-    .from(habitsTable)
-    .where(and(eq(habitsTable.userId, userId), eq(habitsTable.isActive, true)));
-
-  let generated = 0;
-  let skipped = 0;
-
-  for (const habit of activeHabits) {
-    const existing = await db
-      .select({ id: tasksTable.id })
-      .from(tasksTable)
-      .where(
-        and(
-          eq(tasksTable.userId, userId),
-          eq(tasksTable.habitId, habit.id),
-          eq(tasksTable.deadline, today),
-        ),
-      );
-
-    if (existing.length > 0) {
-      skipped++;
-      continue;
-    }
-
-    const classificationName = habit.classificationId
-      ? await db
-          .select({ name: classificationsTable.name })
-          .from(classificationsTable)
-          .where(
-            and(
-              eq(classificationsTable.id, habit.classificationId),
-              eq(classificationsTable.userId, userId),
-            ),
-          )
-          .then((rows) => rows[0]?.name ?? null)
-      : null;
-
-    const titleSuffix = classificationName ? ` [${classificationName}]` : "";
-
-    await db.insert(tasksTable).values({
-      userId,
-      title: `${habit.title}${titleSuffix}`,
-      description: habit.description ?? null,
-      priority: habit.priority,
-      status: "TODO",
-      deadline: today,
-      classificationId: habit.classificationId ?? null,
-      habitId: habit.id,
-    });
-
-    generated++;
-  }
-
-  res.json({ generated, skipped });
+router.post("/habits/auto-generate", requireAuth, async (req, res): Promise<void> => {
+  const userId = req.session.userId!;
+  const result = await generateDailyHabitTasks(userId);
+  res.json(result);
 });
 
 router.post("/habits/ai-suggest", requireAuth, async (req, res): Promise<void> => {

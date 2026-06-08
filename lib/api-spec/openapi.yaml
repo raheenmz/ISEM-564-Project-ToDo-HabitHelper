@@ -645,6 +645,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/GenerateTodayResult"
 
+  /habits/auto-generate:
+    post:
+      operationId: autoGenerateHabitTasks
+      tags: [habits]
+      summary: Auto-generate today's habit tasks (idempotent, safe to call on login/dashboard load)
+      responses:
+        "200":
+          description: Generation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenerateTodayResult"
+
   /habits/ai-suggest:
     post:
       operationId: aiSuggestHabitTasks

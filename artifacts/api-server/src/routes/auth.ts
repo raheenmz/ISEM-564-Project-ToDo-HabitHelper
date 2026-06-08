@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { db, usersTable } from "@workspace/db";
 import { LoginBody, LoginResponse, GetMeResponse } from "@workspace/api-zod";
+import { generateDailyHabitTasks } from "../services/habitGeneration";
 
 const router: IRouter = Router();
 
@@ -31,6 +32,12 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   }
 
   req.session.userId = user.id;
+
+  try {
+    await generateDailyHabitTasks(user.id);
+  } catch (err) {
+    console.error("[habit-generation] login trigger failed:", err);
+  }
 
   res.json(LoginResponse.parse({ id: user.id, name: user.name, email: user.email }));
 });

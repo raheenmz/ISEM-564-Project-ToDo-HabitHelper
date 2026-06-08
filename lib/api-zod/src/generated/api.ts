@@ -576,6 +576,15 @@ export const GenerateTodayHabitTasksResponse = zod.object({
 
 
 /**
+ * @summary Auto-generate today's habit tasks (idempotent, safe to call on login/dashboard load)
+ */
+export const AutoGenerateHabitTasksResponse = zod.object({
+  "generated": zod.number(),
+  "skipped": zod.number()
+})
+
+
+/**
  * @summary Get AI-suggested tasks for a goal
  */
 

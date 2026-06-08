@@ -2403,6 +2403,76 @@ export const useGenerateTodayHabitTasks = <TError = ErrorType<unknown>,
       return useMutation(getGenerateTodayHabitTasksMutationOptions(options));
     }
 
+export const getAutoGenerateHabitTasksUrl = () => {
+
+
+
+
+  return `/api/habits/auto-generate`
+}
+
+/**
+ * @summary Auto-generate today's habit tasks (idempotent, safe to call on login/dashboard load)
+ */
+export const autoGenerateHabitTasks = async ( options?: RequestInit): Promise<GenerateTodayResult> => {
+
+  return customFetch<GenerateTodayResult>(getAutoGenerateHabitTasksUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getAutoGenerateHabitTasksMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof autoGenerateHabitTasks>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof autoGenerateHabitTasks>>, TError,void, TContext> => {
+
+const mutationKey = ['autoGenerateHabitTasks'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof autoGenerateHabitTasks>>, void> = () => {
+
+
+          return  autoGenerateHabitTasks(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AutoGenerateHabitTasksMutationResult = NonNullable<Awaited<ReturnType<typeof autoGenerateHabitTasks>>>
+
+    export type AutoGenerateHabitTasksMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Auto-generate today's habit tasks (idempotent, safe to call on login/dashboard load)
+ */
+export const useAutoGenerateHabitTasks = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof autoGenerateHabitTasks>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof autoGenerateHabitTasks>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getAutoGenerateHabitTasksMutationOptions(options));
+    }
+
 export const getAiSuggestHabitTasksUrl = () => {
 
 

@@ -12,6 +12,7 @@ import {
   useRemoveGroupMember,
   useCreateGroupNote,
   useDeleteGroupNote,
+  useAutoGenerateHabitTasks,
   getGetTasksQueryKey,
   getGetDashboardSummaryQueryKey,
   getGetGroupsQueryKey,
@@ -595,6 +596,22 @@ export default function Dashboard() {
   const { data: tasks = [], isLoading: tasksLoading } = useGetTasks();
   const { data: summary } = useGetDashboardSummary();
   const { data: groups = [], isLoading: groupsLoading } = useGetGroups();
+
+  const autoGenerate = useAutoGenerateHabitTasks();
+
+  useEffect(() => {
+    if (!user) return;
+    autoGenerate.mutate(undefined, {
+      onSuccess: (result) => {
+        qc.invalidateQueries({ queryKey: getGetTasksQueryKey() });
+        qc.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+        if (result.generated > 0) {
+          showToast(`${result.generated} habit task${result.generated !== 1 ? "s" : ""} generated for today`);
+        }
+      },
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   useGroupEvents(!!user);
 
