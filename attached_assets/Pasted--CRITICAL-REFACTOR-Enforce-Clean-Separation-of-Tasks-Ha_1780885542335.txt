@@ -1,0 +1,323 @@
+# 🚨 CRITICAL REFACTOR: Enforce Clean Separation of Tasks, Habits, and Habit Completions
+
+## Context
+
+Refactor the existing Task Force + Habit Builder system to strictly enforce a **3-layer architecture**:
+
+### 1. Tasks = Execution Layer
+
+### 2. Habits = Intent Layer
+
+### 3. Habit Completions = Truth/Tracking Layer
+
+---
+
+# ⚠️ NON-NEGOTIABLE ARCHITECTURE RULES
+
+## RULE 1: Tasks and Habits MUST NEVER be mixed
+
+* ❌ Do NOT store recurring logic inside tasks
+* ❌ Do NOT treat habits as recurring tasks
+* ❌ Do NOT store streaks in tasks
+* ❌ Do NOT store completion history in tasks
+
+---
+
+## RULE 2: Tasks are ONLY for execution
+
+A task represents:
+
+✔ One-time actionable item
+✔ Has a due date
+✔ Has status (todo / in progress / done)
+✔ Can be created manually OR generated from a habit
+
+---
+
+## RULE 3: Habits are ONLY definitions
+
+A habit represents:
+
+✔ A long-term behavior
+✔ No completion status per day
+✔ No “done” state in habits table
+✔ Only metadata + scheduling rules
+
+---
+
+## RULE 4: Habit Completion MUST be separate table
+
+All daily habit tracking MUST go into:
+
+```sql id="hc1"
+habit_completions
+```
+
+This is the ONLY source of truth for:
+
+* streaks
+* progress %
+* Habit Helper updates
+* analytics
+
+---
+
+# 🧠 FINAL DATABASE ENFORCED SCHEMA
+
+---
+
+## USERS (unchanged)
+
+---
+
+## TASKS (Execution Layer ONLY)
+
+```sql id="task1"
+tasks (
+  id UUID PRIMARY KEY,
+  user_id UUID,
+
+  title TEXT,
+  description TEXT,
+
+  status TEXT, 
+  priority TEXT,
+
+  due_date DATE,
+
+  source_type TEXT, 
+  -- 'manual' | 'habit'
+
+  source_id UUID, 
+  -- ONLY used if source_type = 'habit'
+
+  created_at TIMESTAMP
+)
+```
+
+### STRICT RULES FOR TASKS
+
+* Tasks MUST NOT store:
+
+  * streaks
+  * habit frequency
+  * habit metadata
+* Tasks ONLY represent work to be done
+
+---
+
+## HABITS (Intent Layer ONLY)
+
+```sql id="habit1"
+habits (
+  id UUID PRIMARY KEY,
+  user_id UUID,
+
+  title TEXT,
+  description TEXT,
+
+  priority TEXT,
+  classification TEXT,
+
+  frequency TEXT DEFAULT 'daily',
+
+  start_date DATE,
+  active BOOLEAN,
+
+  created_at TIMESTAMP
+)
+```
+
+### STRICT RULES FOR HABITS
+
+* Habits MUST NOT store:
+
+  * completion status
+  * streak count
+  * progress %
+* Habits ONLY define behavior intent
+
+---
+
+## HABIT COMPLETIONS (TRUTH LAYER)
+
+```sql id="hc2"
+habit_completions (
+  id UUID PRIMARY KEY,
+  habit_id UUID,
+  user_id UUID,
+
+  completion_date DATE,
+  status TEXT DEFAULT 'completed',
+
+  created_at TIMESTAMP
+)
+```
+
+---
+
+## UNIQUE CONSTRAINT
+
+```sql id="hc3"
+UNIQUE(habit_id, completion_date)
+```
+
+---
+
+# 🔄 SYSTEM BEHAVIOR RULES
+
+---
+
+## 1. Habit → Task Generation (ONLY ONE WAY)
+
+When generating daily habits:
+
+```text id="flow1"
+IF habit.active = true
+AND NOT EXISTS task for (habit_id + today)
+THEN create task
+```
+
+Create task:
+
+* source_type = 'habit'
+* source_id = habit.id
+* due_date = today
+
+---
+
+## 2. Completing a Habit
+
+When user clicks "Mark Complete":
+
+DO NOT modify habit table.
+
+DO NOT only update task.
+
+You MUST:
+
+### Step 1:
+
+Update task:
+
+```text id="flow2"
+tasks.status = 'completed'
+```
+
+### Step 2:
+
+Insert into:
+
+```text id="flow3"
+habit_completions
+```
+
+---
+
+## 3. Habit Helper Logic
+
+ALL progress is calculated from:
+
+```text id="flow4"
+habit_completions
+```
+
+NOT tasks.
+
+---
+
+## 4. Progress Calculation
+
+```text id="flow5"
+progress % =
+COUNT(completed habits today)
+÷
+COUNT(active habits)
+```
+
+---
+
+# 🚫 FORBIDDEN LOGIC (IMPORTANT)
+
+The system MUST NOT:
+
+* Use tasks to calculate streaks
+* Store habit status in tasks permanently
+* Duplicate habit logic inside task system
+* Treat recurring tasks as habits
+* Update habits when tasks are completed
+
+---
+
+# 🎯 FRONTEND RULES
+
+## My Habits Page
+
+Each habit:
+
+* Has ONLY a "Mark Complete Today" button
+* Button creates/updates:
+
+  * task completion
+  * habit_completions entry
+
+---
+
+## Dashboard
+
+Displays:
+
+* Tasks (manual + habit-generated)
+* Habit progress (from habit_completions)
+* Habit Helper updates (live)
+
+---
+
+# 🤖 HABIT HELPER RULE
+
+Habit Helper MUST ONLY read from:
+
+✔ habit_completions
+✔ tasks (for completion status only)
+✔ habits (for total active count)
+
+It MUST NEVER:
+
+* infer from tasks alone
+* store state in tasks
+* assume completion without habit_completions
+
+---
+
+# 📊 SYSTEM RELATIONSHIP MODEL
+
+```text id="model1"
+HABITS (intent)
+   ↓ generates
+TASKS (execution)
+   ↓ updates
+HABIT_COMPLETIONS (truth)
+   ↓ drives
+HABIT HELPER + STREAKS + ANALYTICS
+```
+
+---
+
+# ✅ SUCCESS CRITERIA
+
+After refactor:
+
+* Tasks and Habits are fully separated
+* Habit completion is reliable and auditable
+* Streaks are accurate and consistent
+* Habit Helper reflects real data only
+* No duplicate or conflicting sources of truth exist
+* System is scalable for future gamification
+
+---
+
+# 🧠 CORE PRINCIPLE
+
+> Tasks are what you do
+> Habits are who you are
+> Completions are what actually happened

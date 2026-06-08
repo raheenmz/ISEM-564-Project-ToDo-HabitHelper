@@ -1,0 +1,67 @@
+Add a Habits tab to the existing Task Force app. Do not modify any existing features, routes, or database tables. Follow the patterns already used in the codebase for routing, auth, and database access.
+
+--- DATABASE ---
+
+Create a new migration file to add a `habits` table with these columns:
+- id (serial primary key)
+- user_id (integer, FK to users)
+- title (text, not null)
+- description (text)
+- priority (text: 'low' | 'medium' | 'high', default 'medium')
+- classification (text, e.g. 'health', 'work', 'personal', 'learning')
+- start_date (date, not null)
+- is_active (boolean, default true)
+- created_at (timestamptz, default now())
+
+--- BACKEND (Express) ---
+
+Create a new router file `server/routes/habits.js` with these endpoints (all protected by existing auth middleware):
+
+1. GET /api/habits — return all habits for the logged-in user
+2. POST /api/habits — create a new habit
+3. PATCH /api/habits/:id — update a habit (title, description, priority, classification, start_date, is_active)
+4. DELETE /api/habits/:id — delete a habit
+
+5. POST /api/habits/generate-today — this is the key endpoint:
+   - Get today's date (server timezone)
+   - Fetch all active habits for the logged-in user where start_date <= today
+   - For each habit, check if a task already exists in the existing `tasks` table where:
+       - title matches the habit title exactly
+       - due_date equals today
+       - user_id matches
+   - If no duplicate exists, insert a new row into `tasks` with:
+       - title = habit title
+       - description = habit description
+       - priority = habit priority
+       - due_date = today
+       - status = 'pending'
+       - user_id = logged-in user id
+       - created_at = now()
+   - Return a summary: { generated: N, skipped: N }
+
+Register this router in the main server file under /api/habits.
+
+--- FRONTEND (React) ---
+
+Create a new page component `client/src/pages/HabitsPage.jsx`.
+
+Layout:
+- Page heading "Habits" and a "+ New Habit" button top right
+- A prominent "Generate Today's Habit Tasks" button (use a distinct color, e.g. green or blue, to make it stand out from the New Habit button)
+- After clicking Generate, show a small inline result message like "✓ 3 tasks created, 2 already existed" — no modal needed
+- A list/table of the user's habits showing: title, classification badge, priority badge, start date, active toggle (is_active), edit icon, delete icon
+- An inline form (or slide-in panel, matching the existing UI pattern) to create or edit a habit with fields for: title, description, priority (dropdown), classification (dropdown or text), start date, active toggle
+
+Behavior:
+- On load, fetch GET /api/habits
+- "+ New Habit" opens the form in create mode
+- Edit icon opens the form pre-filled
+- Active toggle calls PATCH /api/habits/:id with { is_active: true/false }
+- Delete calls DELETE /api/habits/:id with a confirmation prompt
+- "Generate Today's Habit Tasks" calls POST /api/habits/generate-today and shows the returned summary inline
+
+Add a "Habits" link to the existing sidebar/nav in the same style as the other nav items. Route it to /habits.
+
+The generated tasks should appear on the existing Dashboard automatically since they are inserted into the normal tasks table — no Dashboard changes needed.
+
+Match all styling, spacing, color usage, and component patterns already established in the codebase.
