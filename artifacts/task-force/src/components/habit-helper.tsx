@@ -1,22 +1,12 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence, useAnimationControls } from "framer-motion";
-import { X } from "lucide-react";
+import { Send, X } from "lucide-react";
+import { useHabitRobotChat } from "@workspace/api-client-react";
+import type { HabitRobotChatHabitItem } from "@workspace/api-client-react";
 
 export type HelperState = "idle" | "starting" | "halfway" | "almost" | "celebrating" | "excited" | "concerned" | "firstHabit" | "oneLeft";
 
 const STREAK_MILESTONES = [3, 7, 14, 30, 100];
-
-const PROGRESS_MESSAGES: Record<HelperState, string> = {
-  idle:        "Hello! Ready for a productive day?",
-  firstHabit:  "Great start! Momentum builds here.",
-  starting:    "Nice start! Keep it going.",
-  halfway:     "You're doing really well today.",
-  almost:      "Almost done!",
-  oneLeft:     "Only one habit left. Finish strong!",
-  celebrating: "You crushed it today! Amazing work!",
-  excited:     "You're on fire! Keep the streak alive!",
-  concerned:   "No pressure — just pick one habit to start with.",
-};
 
 export function deriveProgressState(
   pct: number,
@@ -201,12 +191,33 @@ export function RobotFace({ state, isBlinking }: RobotFaceProps) {
   );
 }
 
+interface ChatMessage {
+  role: "robot" | "user";
+  text: string;
+}
+
+function TypingDots() {
+  return (
+    <div className="flex items-center gap-1 px-3 py-2">
+      {[0, 1, 2].map((i) => (
+        <motion.div
+          key={i}
+          className="w-1.5 h-1.5 rounded-full bg-slate-400"
+          animate={{ opacity: [0.3, 1, 0.3], y: [0, -3, 0] }}
+          transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.15 }}
+        />
+      ))}
+    </div>
+  );
+}
+
 export interface HabitHelperProps {
   currentStreak: number;
   completedHabits: number;
   totalHabits: number;
   productivityScore: number;
   justCreatedHabit?: boolean;
+  habitStats?: HabitRobotChatHabitItem[];
 }
 
 export function HabitHelper({
@@ -215,11 +226,19 @@ export function HabitHelper({
   totalHabits,
   productivityScore: _productivityScore,
   justCreatedHabit = false,
+  habitStats = [],
 }: HabitHelperProps) {
   const [expanded, setExpanded] = useState(false);
   const [isBlinking, setIsBlinking] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState("");
+  const [initialized, setInitialized] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const _controls = useAnimationControls();
+
+  const robotChat = useHabitRobotChat();
 
   const pct = totalHabits > 0 ? Math.round((completedHabits / totalHabits) * 100) : 0;
   const state: HelperState = justCreatedHabit
@@ -227,7 +246,6 @@ export function HabitHelper({
     : deriveProgressState(pct, currentStreak, totalHabits, completedHabits);
 
   const colors = STATE_COLORS[state];
-  const message = PROGRESS_MESSAGES[state];
 
   useEffect(() => {
     if (state === "celebrating" || state === "excited") {
@@ -250,6 +268,43 @@ export function HabitHelper({
     let blinkTimer = schedule();
     return () => clearTimeout(blinkTimer);
   }, []);
+
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages, robotChat.isPending]);
+
+  async function fetchInitialAnalysis() {
+    setInitialized(true);
+    try {
+      const result = await robotChat.mutateAsync({ data: { habits: habitStats } });
+      setMessages([{ role: "robot", text: result.reply }]);
+    } catch {
+      setMessages([{ role: "robot", text: "Hey! I'm having a little trouble connecting right now. Try sending me a message!" }]);
+    }
+  }
+
+  function handleOpen() {
+    setExpanded(true);
+    if (!initialized) {
+      fetchInitialAnalysis();
+    }
+    setTimeout(() => inputRef.current?.focus(), 300);
+  }
+
+  async function handleSend() {
+    const text = input.trim();
+    if (!text || robotChat.isPending) return;
+    setInput("");
+    setMessages((prev) => [...prev, { role: "user", text }]);
+    try {
+      const result = await robotChat.mutateAsync({ data: { habits: habitStats, message: text } });
+      setMessages((prev) => [...prev, { role: "robot", text: result.reply }]);
+    } catch {
+      setMessages((prev) => [...prev, { role: "robot", text: "Oops, something went wrong. Try again!" }]);
+    }
+  }
 
   const floatAnimation =
     state === "celebrating"
@@ -287,6 +342,13 @@ export function HabitHelper({
     : totalHabits > 0 ? "Time to start your habits!"
     : "Create habits to get started.";
 
+  const headerBg =
+    state === "celebrating" ? "bg-violet-50 border-b border-violet-100" :
+    state === "almost"      ? "bg-orange-50 border-b border-orange-100" :
+    state === "halfway"     ? "bg-cyan-50 border-b border-cyan-100"    :
+    state === "starting"    ? "bg-teal-50 border-b border-teal-100"    :
+                              "bg-slate-50 border-b border-slate-100";
+
   return (
     <div className="flex flex-col items-end gap-3">
       <AnimatePresence>
@@ -296,60 +358,124 @@ export function HabitHelper({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.92 }}
             transition={{ duration: 0.22, ease: "easeOut" }}
-            className="w-72 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden"
+            className="w-80 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden flex flex-col"
+            style={{ maxHeight: "480px" }}
           >
-            <div className={`px-4 py-3 flex items-center justify-between ${
-              state === "celebrating" ? "bg-violet-50 border-b border-violet-100" :
-              state === "almost"      ? "bg-orange-50 border-b border-orange-100" :
-              state === "halfway"     ? "bg-cyan-50 border-b border-cyan-100"    :
-              state === "starting"    ? "bg-teal-50 border-b border-teal-100"    :
-                                        "bg-slate-50 border-b border-slate-100"
-            }`}>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Habit Helper</p>
-              <button onClick={() => setExpanded(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
+            {/* Header */}
+            <div className={`px-4 py-3 flex items-center justify-between shrink-0 ${headerBg}`}>
+              <div className="flex items-center gap-2">
+                <RobotFace state={state} isBlinking={isBlinking} />
+                <div>
+                  <p className="text-xs font-semibold text-slate-700 leading-none">Habit Helper</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">AI-powered habit coach</p>
+                </div>
+              </div>
+              <button onClick={() => setExpanded(false)} className="text-slate-400 hover:text-slate-600 transition-colors p-1">
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>
 
-            <div className="p-4 space-y-4">
-              <p className="text-sm text-slate-700 leading-relaxed font-medium">{message}</p>
+            {/* Progress bar (compact) */}
+            {totalHabits > 0 && (
+              <div className="px-4 py-2.5 border-b border-slate-50 shrink-0">
+                <div className="flex justify-between items-center text-xs mb-1.5">
+                  <span className="text-slate-400">Today's progress</span>
+                  <span className="font-semibold text-slate-600">{completedHabits}/{totalHabits} · {pct}%</span>
+                </div>
+                <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                  <motion.div
+                    className={`h-full rounded-full ${
+                      pct === 100 ? "bg-violet-500" :
+                      pct >= 75   ? "bg-orange-400" :
+                      pct >= 50   ? "bg-cyan-500"   :
+                                    "bg-teal-400"
+                    }`}
+                    initial={{ width: 0 }}
+                    animate={{ width: `${pct}%` }}
+                    transition={{ duration: 0.6, ease: "easeOut" }}
+                  />
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">{progressLabel}</p>
+              </div>
+            )}
 
-              {totalHabits > 0 && (
-                <div className="space-y-1.5">
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-slate-400">Today's progress</span>
-                    <span className="font-semibold text-slate-600">{completedHabits}/{totalHabits}</span>
+            {/* Streak badge (compact) */}
+            {currentStreak > 0 && (
+              <div className="px-4 py-2 flex items-center gap-2 border-b border-slate-50 shrink-0">
+                <span className="text-sm leading-none">🔥</span>
+                <p className="text-xs font-semibold text-orange-700">{currentStreak}-day streak</p>
+                <p className="text-xs text-orange-400 ml-auto">
+                  {STREAK_MILESTONES.find((m) => m > currentStreak)
+                    ? `${STREAK_MILESTONES.find((m) => m > currentStreak)! - currentStreak} to next milestone`
+                    : "Incredible!"}
+                </p>
+              </div>
+            )}
+
+            {/* Chat messages */}
+            <div className="flex-1 overflow-y-auto p-3 space-y-2 min-h-0">
+              {messages.length === 0 && robotChat.isPending && (
+                <div className="flex items-start gap-2">
+                  <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center shrink-0 mt-0.5">
+                    <span className="text-[10px]">🤖</span>
                   </div>
-                  <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                    <motion.div
-                      className={`h-full rounded-full ${
-                        pct === 100 ? "bg-violet-500" :
-                        pct >= 75   ? "bg-orange-400" :
-                        pct >= 50   ? "bg-cyan-500"   :
-                                      "bg-teal-400"
-                      }`}
-                      initial={{ width: 0 }}
-                      animate={{ width: `${pct}%` }}
-                      transition={{ duration: 0.6, ease: "easeOut" }}
-                    />
+                  <div className="bg-slate-50 rounded-2xl rounded-tl-sm">
+                    <TypingDots />
                   </div>
-                  <p className="text-xs text-slate-400">{progressLabel}</p>
                 </div>
               )}
-
-              {currentStreak > 0 && (
-                <div className="flex items-center gap-2 bg-orange-50 border border-orange-100 rounded-xl px-3 py-2">
-                  <span className="text-base leading-none">🔥</span>
-                  <div>
-                    <p className="text-xs font-semibold text-orange-700">{currentStreak}-day streak</p>
-                    <p className="text-xs text-orange-500">
-                      {STREAK_MILESTONES.find((m) => m > currentStreak)
-                        ? `${STREAK_MILESTONES.find((m) => m > currentStreak)! - currentStreak} days to next milestone`
-                        : "Incredible consistency!"}
-                    </p>
+              {messages.map((msg, i) => (
+                <div
+                  key={i}
+                  className={`flex items-start gap-2 ${msg.role === "user" ? "flex-row-reverse" : ""}`}
+                >
+                  {msg.role === "robot" && (
+                    <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center shrink-0 mt-0.5">
+                      <span className="text-[10px]">🤖</span>
+                    </div>
+                  )}
+                  <div
+                    className={`text-xs leading-relaxed rounded-2xl px-3 py-2 max-w-[85%] whitespace-pre-wrap ${
+                      msg.role === "robot"
+                        ? "bg-slate-50 text-slate-700 rounded-tl-sm"
+                        : "bg-teal-600 text-white rounded-tr-sm"
+                    }`}
+                  >
+                    {msg.text}
+                  </div>
+                </div>
+              ))}
+              {messages.length > 0 && robotChat.isPending && (
+                <div className="flex items-start gap-2">
+                  <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center shrink-0 mt-0.5">
+                    <span className="text-[10px]">🤖</span>
+                  </div>
+                  <div className="bg-slate-50 rounded-2xl rounded-tl-sm">
+                    <TypingDots />
                   </div>
                 </div>
               )}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Input */}
+            <div className="px-3 py-2.5 border-t border-slate-100 flex gap-2 items-center shrink-0">
+              <input
+                ref={inputRef}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                placeholder="Ask me anything…"
+                disabled={robotChat.isPending}
+                className="flex-1 text-xs px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:border-transparent transition placeholder:text-slate-300 disabled:opacity-50"
+              />
+              <button
+                onClick={handleSend}
+                disabled={!input.trim() || robotChat.isPending}
+                className="w-8 h-8 rounded-xl bg-teal-600 hover:bg-teal-700 text-white flex items-center justify-center transition-colors disabled:opacity-40 shrink-0"
+              >
+                <Send className="w-3.5 h-3.5" />
+              </button>
             </div>
           </motion.div>
         )}
@@ -359,7 +485,6 @@ export function HabitHelper({
         {showConfetti && <ConfettiBurst />}
         {(state === "almost" || state === "excited") && <SparklesOverlay />}
 
-        {/* Glow ring for halfway+ */}
         {(state === "halfway" || state === "almost" || state === "celebrating") && (
           <motion.div
             className="absolute inset-0 rounded-2xl pointer-events-none"
@@ -372,7 +497,7 @@ export function HabitHelper({
         )}
 
         <motion.button
-          onClick={() => setExpanded((v) => !v)}
+          onClick={() => { if (expanded) { setExpanded(false); } else { handleOpen(); } }}
           className="relative w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-400"
           style={{
             background: `linear-gradient(135deg, ${colors.head} 0%, #1e293b 100%)`,

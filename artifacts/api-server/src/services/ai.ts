@@ -94,3 +94,78 @@ function enrichFallback(goal: string, targetDate?: string): AiSuggestedTask[] {
     deadline: i === 0 && targetDate ? targetDate : null,
   }));
 }
+
+export interface HabitRobotChatHabitItem {
+  id: number;
+  title: string;
+  classification: string | null;
+  priority: string;
+  tasksThisMonth: number;
+  completedThisMonth: number;
+  completedToday: boolean;
+}
+
+const HABIT_ROBOT_SYSTEM_PROMPT = `You are the Habit Helper Robot, a friendly and motivating assistant built into the Task Force productivity app. Your two jobs are:
+
+1. Help users understand and update their habit completion progress (% complete).
+2. Deliver relevant, credible habit-science quotes to inspire continued effort.
+
+Tone: warm, concise, encouraging. Never preachy. One quote per response unless the user asks for more.`;
+
+const HABIT_ROBOT_FALLBACK = `Hey there! 👋 I'm your Habit Helper Robot. I can see your habits but my AI brain isn't connected right now.
+
+Here's some timeless wisdom while I'm offline:
+
+"We are what we repeatedly do. Excellence, then, is not an act, but a habit."
+— Aristotle
+
+Keep showing up — consistency is the only secret!`;
+
+export async function chatWithHabitRobot(
+  habits: HabitRobotChatHabitItem[],
+  message?: string,
+): Promise<string> {
+  const baseUrl = process.env.AI_INTEGRATIONS_GEMINI_BASE_URL || process.env.AI_INTEGRATIONS_OPENAI_BASE_URL;
+  const apiKey = process.env.AI_INTEGRATIONS_GEMINI_API_KEY || process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY;
+
+  if (!baseUrl || !apiKey) {
+    logger.warn("No AI API key/URL configured — returning fallback robot reply");
+    return HABIT_ROBOT_FALLBACK;
+  }
+
+  const habitDataJson = JSON.stringify(habits, null, 2);
+  const userContent = message?.trim()
+    ? message.trim()
+    : `The user has the following active habits today. For each habit, a completion status is provided.\n\nHabit data (JSON):\n${habitDataJson}\n\nPlease analyse this data and:\n1. Show each habit's name, monthly % complete (completedThisMonth / tasksThisMonth * 100, rounded), and a short one-line status.\n2. Pick ONE quote from a credible source (BJ Fogg, James Clear, Phillippa Lally, Wendy Wood, B.F. Skinner, William James, Aristotle, or peer-reviewed research) that best fits the user's situation. If overall completion is below 50%, choose something encouraging about starting small. If above 80%, choose something about maintaining streaks or compounding gains. Include the author's full name and source.\n\nDo not fabricate quotes. Use plain text — no markdown headers or bullet asterisks, just clean readable lines.`;
+
+  try {
+    const res = await fetch(`${baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "gemini-2.0-flash",
+        messages: [
+          { role: "system", content: HABIT_ROBOT_SYSTEM_PROMPT },
+          { role: "user", content: userContent },
+        ],
+        max_completion_tokens: 800,
+      }),
+      signal: AbortSignal.timeout(20000),
+    });
+
+    if (!res.ok) {
+      logger.warn({ status: res.status }, "AI API returned non-OK status for robot chat — falling back");
+      return HABIT_ROBOT_FALLBACK;
+    }
+
+    const data = await res.json() as { choices?: { message?: { content?: string } }[] };
+    const content = data?.choices?.[0]?.message?.content?.trim() ?? "";
+    return content || HABIT_ROBOT_FALLBACK;
+  } catch (err) {
+    logger.warn({ err }, "Habit robot chat failed — returning fallback");
+    return HABIT_ROBOT_FALLBACK;
+  }
+}

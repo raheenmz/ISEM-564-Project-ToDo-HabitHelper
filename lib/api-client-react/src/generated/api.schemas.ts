@@ -275,6 +275,7 @@ export interface Habit {
   isActive: boolean;
   isSkippedToday: boolean;
   skippedDates: string[];
+  /** Consecutive days this habit's task has been marked DONE; resets to 0 on any missed day */
   streak: number;
   createdAt: string;
   updatedAt: string;
@@ -355,5 +356,34 @@ export interface AiSuggestedTask {
 
 export interface AiSuggestResult {
   suggestions: AiSuggestedTask[];
+}
+
+export type HabitRobotChatHabitItemPriority = typeof HabitRobotChatHabitItemPriority[keyof typeof HabitRobotChatHabitItemPriority];
+
+
+export const HabitRobotChatHabitItemPriority = {
+  LOW: 'LOW',
+  MEDIUM: 'MEDIUM',
+  HIGH: 'HIGH',
+} as const;
+
+export interface HabitRobotChatHabitItem {
+  id: number;
+  title: string;
+  /** @nullable */
+  classification?: string | null;
+  priority: HabitRobotChatHabitItemPriority;
+  tasksThisMonth: number;
+  completedThisMonth: number;
+  completedToday: boolean;
+}
+
+export interface HabitRobotChatInput {
+  habits: HabitRobotChatHabitItem[];
+  message?: string;
+}
+
+export interface HabitRobotChatResult {
+  reply: string;
 }
 

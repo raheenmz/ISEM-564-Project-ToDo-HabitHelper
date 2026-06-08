@@ -21,6 +21,7 @@ export interface Habit {
   isActive: boolean;
   isSkippedToday: boolean;
   skippedDates: string[];
+  /** Consecutive days this habit's task has been marked DONE; resets to 0 on any missed day */
   streak: number;
   createdAt: string;
   updatedAt: string;

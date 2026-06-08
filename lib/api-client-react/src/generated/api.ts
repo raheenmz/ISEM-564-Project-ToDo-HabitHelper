@@ -33,6 +33,8 @@ import type {
   GroupNoteInput,
   Habit,
   HabitInput,
+  HabitRobotChatInput,
+  HabitRobotChatResult,
   HabitUpdate,
   HealthStatus,
   LoginInput,
@@ -2683,5 +2685,76 @@ export const useAiSuggestHabitTasks = <TError = ErrorType<unknown>,
         TContext
       > => {
       return useMutation(getAiSuggestHabitTasksMutationOptions(options));
+    }
+
+export const getHabitRobotChatUrl = () => {
+
+
+
+
+  return `/api/habits/robot-chat`
+}
+
+/**
+ * @summary Chat with the Habit Helper Robot
+ */
+export const habitRobotChat = async (habitRobotChatInput: HabitRobotChatInput, options?: RequestInit): Promise<HabitRobotChatResult> => {
+
+  return customFetch<HabitRobotChatResult>(getHabitRobotChatUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      habitRobotChatInput,)
+  }
+);}
+
+
+
+
+export const getHabitRobotChatMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof habitRobotChat>>, TError,{data: BodyType<HabitRobotChatInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof habitRobotChat>>, TError,{data: BodyType<HabitRobotChatInput>}, TContext> => {
+
+const mutationKey = ['habitRobotChat'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof habitRobotChat>>, {data: BodyType<HabitRobotChatInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  habitRobotChat(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type HabitRobotChatMutationResult = NonNullable<Awaited<ReturnType<typeof habitRobotChat>>>
+    export type HabitRobotChatMutationBody = BodyType<HabitRobotChatInput>
+    export type HabitRobotChatMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Chat with the Habit Helper Robot
+ */
+export const useHabitRobotChat = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof habitRobotChat>>, TError,{data: BodyType<HabitRobotChatInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof habitRobotChat>>,
+        TError,
+        {data: BodyType<HabitRobotChatInput>},
+        TContext
+      > => {
+      return useMutation(getHabitRobotChatMutationOptions(options));
     }
 

@@ -679,6 +679,30 @@ export function HabitsTab({ onToast }: HabitsTabProps) {
   ).length;
   const completedHabits = todayHabitTasks.filter((t) => t.status === "DONE").length;
   const totalHabits = activeHabits.length;
+
+  const monthStart = (() => {
+    const d = new Date();
+    d.setDate(1);
+    return d.toISOString().split("T")[0];
+  })();
+
+  const habitStats = activeHabits.map((habit) => {
+    const cls = allClassifications.find((c) => c.id === habit.classificationId);
+    const monthTasks = allTasks.filter(
+      (t) => t.habitId === habit.id && t.deadline != null && t.deadline >= monthStart,
+    );
+    const completedThisMonth = monthTasks.filter((t) => t.status === "DONE").length;
+    const todayTask = allTasks.find((t) => t.habitId === habit.id && t.deadline === today);
+    return {
+      id: habit.id,
+      title: habit.title,
+      classification: cls?.name ?? null,
+      priority: habit.priority as "LOW" | "MEDIUM" | "HIGH",
+      tasksThisMonth: monthTasks.length,
+      completedThisMonth,
+      completedToday: todayTask?.status === "DONE",
+    };
+  });
   const productivityScore = totalHabits > 0 ? Math.round(((completedHabits + skippedTodayCount) / totalHabits) * 100) : 0;
   const currentStreak = computeStreak(allTasks, allSkippedDates);
   const totalXP = habitDoneCount * 10 + currentStreak * 15;
@@ -1098,6 +1122,7 @@ export function HabitsTab({ onToast }: HabitsTabProps) {
           totalHabits={totalHabits}
           productivityScore={productivityScore}
           justCreatedHabit={justCreatedHabit}
+          habitStats={habitStats}
         />
       </div>
 

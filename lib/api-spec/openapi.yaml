@@ -713,6 +713,25 @@ paths:
               schema:
                 $ref: "#/components/schemas/AiSuggestResult"
 
+  /habits/robot-chat:
+    post:
+      operationId: habitRobotChat
+      tags: [habits]
+      summary: Chat with the Habit Helper Robot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HabitRobotChatInput"
+      responses:
+        "200":
+          description: Robot reply
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HabitRobotChatResult"
+
 components:
   schemas:
     HealthStatus:
@@ -1222,3 +1241,49 @@ components:
             $ref: "#/components/schemas/AiSuggestedTask"
       required:
         - suggestions
+
+    HabitRobotChatHabitItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        classification:
+          type: ["string", "null"]
+        priority:
+          type: string
+          enum: [LOW, MEDIUM, HIGH]
+        tasksThisMonth:
+          type: integer
+        completedThisMonth:
+          type: integer
+        completedToday:
+          type: boolean
+      required:
+        - id
+        - title
+        - priority
+        - tasksThisMonth
+        - completedThisMonth
+        - completedToday
+
+    HabitRobotChatInput:
+      type: object
+      properties:
+        habits:
+          type: array
+          items:
+            $ref: "#/components/schemas/HabitRobotChatHabitItem"
+        message:
+          type: string
+      required:
+        - habits
+
+    HabitRobotChatResult:
+      type: object
+      properties:
+        reply:
+          type: string
+      required:
+        - reply

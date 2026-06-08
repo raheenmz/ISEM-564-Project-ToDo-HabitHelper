@@ -482,7 +482,7 @@ export const GetHabitsResponseItem = zod.object({
   "isActive": zod.boolean(),
   "isSkippedToday": zod.boolean(),
   "skippedDates": zod.array(zod.string()),
-  "streak": zod.number(),
+  "streak": zod.number().describe('Consecutive days this habit\'s task has been marked DONE; resets to 0 on any missed day'),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -524,7 +524,7 @@ export const GetHabitResponse = zod.object({
   "isActive": zod.boolean(),
   "isSkippedToday": zod.boolean(),
   "skippedDates": zod.array(zod.string()),
-  "streak": zod.number(),
+  "streak": zod.number().describe('Consecutive days this habit\'s task has been marked DONE; resets to 0 on any missed day'),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -561,6 +561,7 @@ export const UpdateHabitResponse = zod.object({
   "isActive": zod.boolean(),
   "isSkippedToday": zod.boolean(),
   "skippedDates": zod.array(zod.string()),
+  "streak": zod.number().describe('Consecutive days this habit\'s task has been marked DONE; resets to 0 on any missed day'),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -631,6 +632,27 @@ export const AiSuggestHabitTasksResponse = zod.object({
   "deadline": zod.string().nullish(),
   "priority": zod.enum(['LOW', 'MEDIUM', 'HIGH'])
 }))
+})
+
+
+/**
+ * @summary Chat with the Habit Helper Robot
+ */
+export const HabitRobotChatBody = zod.object({
+  "habits": zod.array(zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "classification": zod.string().nullish(),
+  "priority": zod.enum(['LOW', 'MEDIUM', 'HIGH']),
+  "tasksThisMonth": zod.number(),
+  "completedThisMonth": zod.number(),
+  "completedToday": zod.boolean()
+})),
+  "message": zod.string().optional()
+})
+
+export const HabitRobotChatResponse = zod.object({
+  "reply": zod.string()
 })
 
 

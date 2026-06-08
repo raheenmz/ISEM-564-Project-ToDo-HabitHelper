@@ -12,9 +12,10 @@ import {
   AiSuggestHabitTasksBody,
   SkipHabitTodayParams,
   UnskipHabitTodayParams,
+  HabitRobotChatBody,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/auth";
-import { suggestTasksForGoal } from "../services/ai";
+import { suggestTasksForGoal, chatWithHabitRobot } from "../services/ai";
 import { generateDailyHabitTasks } from "../services/habitGeneration";
 
 const router: IRouter = Router();
@@ -356,6 +357,28 @@ router.post("/habits/ai-suggest", requireAuth, async (req, res): Promise<void> =
 
   const suggestions = await suggestTasksForGoal(parsed.data.goal, parsed.data.targetDate ?? undefined);
   res.json({ suggestions });
+});
+
+router.post("/habits/robot-chat", requireAuth, async (req, res): Promise<void> => {
+  const parsed = HabitRobotChatBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const reply = await chatWithHabitRobot(
+    parsed.data.habits.map((h) => ({
+      id: h.id,
+      title: h.title,
+      classification: h.classification ?? null,
+      priority: h.priority,
+      tasksThisMonth: h.tasksThisMonth,
+      completedThisMonth: h.completedThisMonth,
+      completedToday: h.completedToday,
+    })),
+    parsed.data.message ?? undefined,
+  );
+  res.json({ reply });
 });
 
 export default router;
