@@ -45,9 +45,9 @@ Example: [{"title":"...","description":"...","deadline":"2025-01-15","priority":
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "gemini-2.0-flash",
+        model: "gemini-2.5-flash",
         messages: [{ role: "user", content: prompt }],
-        max_completion_tokens: 1024,
+        max_completion_tokens: 8192,
       }),
       signal: AbortSignal.timeout(15000),
     });
