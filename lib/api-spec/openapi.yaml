@@ -668,6 +668,57 @@ paths:
         "404":
           description: Habit not found
 
+  /habits/today-progress:
+    get:
+      operationId: getHabitTodayProgress
+      tags: [habits]
+      summary: Get today's habit completion progress and streak
+      responses:
+        "200":
+          description: Today's progress summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HabitTodayProgress"
+
+  /habits/progress-events:
+    get:
+      operationId: habitProgressEvents
+      tags: [habits]
+      summary: SSE stream for real-time habit progress updates
+      responses:
+        "200":
+          description: SSE event stream
+
+  /habits/tasks/{taskId}/status:
+    patch:
+      operationId: updateHabitTaskStatus
+      tags: [habits]
+      summary: Update the status of a habit task
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HabitTaskStatusUpdate"
+      responses:
+        "200":
+          description: Updated task with XP delta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HabitTaskStatusResult"
+        "403":
+          description: Not a habit task or not owned by user
+        "404":
+          description: Task not found
+
   /habits/generate-today:
     post:
       operationId: generateTodayHabitTasks
@@ -800,6 +851,10 @@ components:
           type: integer
         completedSubtaskCount:
           type: integer
+        habitId:
+          type: ["integer", "null"]
+        isHabitTask:
+          type: boolean
         emailNotificationSent:
           type: boolean
         createdAt:
@@ -813,6 +868,7 @@ components:
         - priority
         - status
         - isOverdue
+        - isHabitTask
         - subtaskCount
         - completedSubtaskCount
         - createdAt
@@ -1241,6 +1297,49 @@ components:
             $ref: "#/components/schemas/AiSuggestedTask"
       required:
         - suggestions
+
+    HabitTodayProgress:
+      type: object
+      properties:
+        total:
+          type: integer
+        done:
+          type: integer
+        inProgress:
+          type: integer
+        percentage:
+          type: integer
+        streak:
+          type: integer
+      required:
+        - total
+        - done
+        - inProgress
+        - percentage
+        - streak
+
+    HabitTaskStatusUpdate:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [TODO, IN_PROGRESS, DONE]
+      required:
+        - status
+
+    HabitTaskStatusResult:
+      type: object
+      properties:
+        taskId:
+          type: integer
+        status:
+          type: string
+        xpDelta:
+          type: integer
+      required:
+        - taskId
+        - status
+        - xpDelta
 
     HabitRobotChatHabitItem:
       type: object

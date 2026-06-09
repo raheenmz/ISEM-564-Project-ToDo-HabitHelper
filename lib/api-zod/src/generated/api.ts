@@ -60,6 +60,8 @@ export const GetTasksResponseItem = zod.object({
   "isOverdue": zod.boolean(),
   "subtaskCount": zod.number(),
   "completedSubtaskCount": zod.number(),
+  "habitId": zod.number().nullish(),
+  "isHabitTask": zod.boolean(),
   "emailNotificationSent": zod.boolean().optional(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
@@ -106,6 +108,8 @@ export const GetTaskResponse = zod.object({
   "isOverdue": zod.boolean(),
   "subtaskCount": zod.number(),
   "completedSubtaskCount": zod.number(),
+  "habitId": zod.number().nullish(),
+  "isHabitTask": zod.boolean(),
   "emailNotificationSent": zod.boolean().optional(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
@@ -148,6 +152,8 @@ export const UpdateTaskResponse = zod.object({
   "isOverdue": zod.boolean(),
   "subtaskCount": zod.number(),
   "completedSubtaskCount": zod.number(),
+  "habitId": zod.number().nullish(),
+  "isHabitTask": zod.boolean(),
   "emailNotificationSent": zod.boolean().optional(),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
@@ -593,6 +599,36 @@ export const SkipHabitTodayResponse = zod.object({
  */
 export const UnskipHabitTodayParams = zod.object({
   "habitId": zod.coerce.number()
+})
+
+
+/**
+ * @summary Get today's habit completion progress and streak
+ */
+export const GetHabitTodayProgressResponse = zod.object({
+  "total": zod.number(),
+  "done": zod.number(),
+  "inProgress": zod.number(),
+  "percentage": zod.number(),
+  "streak": zod.number()
+})
+
+
+/**
+ * @summary Update the status of a habit task
+ */
+export const UpdateHabitTaskStatusParams = zod.object({
+  "taskId": zod.coerce.number()
+})
+
+export const UpdateHabitTaskStatusBody = zod.object({
+  "status": zod.enum(['TODO', 'IN_PROGRESS', 'DONE'])
+})
+
+export const UpdateHabitTaskStatusResponse = zod.object({
+  "taskId": zod.number(),
+  "status": zod.string(),
+  "xpDelta": zod.number()
 })
 
 

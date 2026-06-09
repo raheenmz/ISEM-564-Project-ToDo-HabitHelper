@@ -59,6 +59,9 @@ export interface Task {
   isOverdue: boolean;
   subtaskCount: number;
   completedSubtaskCount: number;
+  /** @nullable */
+  habitId?: number | null;
+  isHabitTask: boolean;
   emailNotificationSent?: boolean;
   createdAt: string;
   updatedAt: string;
@@ -356,6 +359,33 @@ export interface AiSuggestedTask {
 
 export interface AiSuggestResult {
   suggestions: AiSuggestedTask[];
+}
+
+export interface HabitTodayProgress {
+  total: number;
+  done: number;
+  inProgress: number;
+  percentage: number;
+  streak: number;
+}
+
+export type HabitTaskStatusUpdateStatus = typeof HabitTaskStatusUpdateStatus[keyof typeof HabitTaskStatusUpdateStatus];
+
+
+export const HabitTaskStatusUpdateStatus = {
+  TODO: 'TODO',
+  IN_PROGRESS: 'IN_PROGRESS',
+  DONE: 'DONE',
+} as const;
+
+export interface HabitTaskStatusUpdate {
+  status: HabitTaskStatusUpdateStatus;
+}
+
+export interface HabitTaskStatusResult {
+  taskId: number;
+  status: string;
+  xpDelta: number;
 }
 
 export type HabitRobotChatHabitItemPriority = typeof HabitRobotChatHabitItemPriority[keyof typeof HabitRobotChatHabitItemPriority];

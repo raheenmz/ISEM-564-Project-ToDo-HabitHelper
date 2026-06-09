@@ -29,6 +29,8 @@ function taskWithOverdue(task: {
   classificationId: number | null;
   classificationName: string | null;
   groupId: number | null;
+  habitId?: number | null;
+  isHabitTask?: boolean;
   assignedUserId: number | null;
   title: string;
   description: string | null;
@@ -43,6 +45,8 @@ function taskWithOverdue(task: {
 }) {
   return {
     ...task,
+    habitId: task.habitId ?? null,
+    isHabitTask: task.isHabitTask ?? false,
     subtaskCount: task.subtaskCount ?? 0,
     completedSubtaskCount: task.completedSubtaskCount ?? 0,
     emailNotificationSent: task.emailNotificationSent ?? false,
@@ -109,6 +113,8 @@ router.get("/tasks", requireAuth, async (req, res): Promise<void> => {
       classificationId: tasksTable.classificationId,
       classificationName: classificationsTable.name,
       groupId: tasksTable.groupId,
+      habitId: tasksTable.habitId,
+      isHabitTask: tasksTable.isHabitTask,
       assignedUserId: tasksTable.assignedUserId,
       title: tasksTable.title,
       description: tasksTable.description,

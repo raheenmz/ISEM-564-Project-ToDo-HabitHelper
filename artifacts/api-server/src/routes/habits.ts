@@ -13,10 +13,12 @@ import {
   SkipHabitTodayParams,
   UnskipHabitTodayParams,
   HabitRobotChatBody,
+  UpdateHabitTaskStatusBody,
 } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/auth";
 import { suggestTasksForGoal, chatWithHabitRobot } from "../services/ai";
 import { generateDailyHabitTasks } from "../services/habitGeneration";
+import { addSubscriber, emitHabitProgressEvent } from "../lib/sse";
 
 const router: IRouter = Router();
 
@@ -175,6 +177,141 @@ router.post("/habits", requireAuth, async (req, res): Promise<void> => {
 
   const [enriched] = await attachSkipData([habit], userId);
   res.status(201).json(GetHabitResponse.parse(serializeHabit(enriched)));
+});
+
+router.get("/habits/today-progress", requireAuth, async (req, res): Promise<void> => {
+  try {
+    const userId = req.session.userId!;
+    const today = todayStr();
+
+    const habitTasks = await db
+      .select({ id: tasksTable.id, status: tasksTable.status })
+      .from(tasksTable)
+      .where(
+        and(
+          eq(tasksTable.userId, userId),
+          eq(tasksTable.isHabitTask, true),
+          eq(tasksTable.deadline, today),
+        ),
+      );
+
+    const total = habitTasks.length;
+    const done = habitTasks.filter((t) => t.status === "DONE").length;
+    const inProgress = habitTasks.filter((t) => t.status === "IN_PROGRESS").length;
+    const percentage = total > 0 ? Math.round((done / total) * 100) : 0;
+
+    const allDoneTasks = await db
+      .select({ deadline: tasksTable.deadline })
+      .from(tasksTable)
+      .where(
+        and(
+          eq(tasksTable.userId, userId),
+          eq(tasksTable.isHabitTask, true),
+          eq(tasksTable.status, "DONE"),
+        ),
+      );
+
+    const doneDates = new Set(allDoneTasks.map((t) => t.deadline).filter(Boolean) as string[]);
+
+    let streak = 0;
+    const base = new Date();
+    for (let i = 0; i <= 365; i++) {
+      const d = new Date(base);
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split("T")[0];
+      if (doneDates.has(dateStr)) {
+        streak++;
+      } else {
+        break;
+      }
+    }
+
+    res.json({ total, done, inProgress, percentage, streak });
+  } catch (err) {
+    console.error("[today-progress] error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.get("/habits/progress-events", requireAuth, (req, res): void => {
+  try {
+    const userId = req.session.userId!;
+
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
+    res.flushHeaders();
+
+    res.write(": connected\n\n");
+
+    const remove = addSubscriber(userId, (chunk) => res.write(chunk), "habits");
+
+    const heartbeat = setInterval(() => {
+      try {
+        res.write(": ping\n\n");
+      } catch {
+        clearInterval(heartbeat);
+      }
+    }, 25000);
+
+    req.on("close", () => {
+      clearInterval(heartbeat);
+      remove();
+    });
+  } catch (err) {
+    console.error("[progress-events] error:", err);
+    if (!res.headersSent) res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.patch("/habits/tasks/:taskId/status", requireAuth, async (req, res): Promise<void> => {
+  const userId = req.session.userId!;
+
+  const taskId = parseInt(req.params.taskId as string, 10);
+  if (isNaN(taskId)) {
+    res.status(400).json({ error: "Invalid taskId" });
+    return;
+  }
+
+  const parsed = UpdateHabitTaskStatusBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const [existing] = await db
+    .select({
+      id: tasksTable.id,
+      userId: tasksTable.userId,
+      isHabitTask: tasksTable.isHabitTask,
+      status: tasksTable.status,
+    })
+    .from(tasksTable)
+    .where(eq(tasksTable.id, taskId));
+
+  if (!existing) {
+    res.status(404).json({ error: "Task not found" });
+    return;
+  }
+
+  if (existing.userId !== userId || !existing.isHabitTask) {
+    res.status(403).json({ error: "Not a habit task or not owned by user" });
+    return;
+  }
+
+  const { status: newStatus } = parsed.data;
+  const oldStatus = existing.status;
+
+  await db.update(tasksTable).set({ status: newStatus }).where(eq(tasksTable.id, taskId));
+
+  let xpDelta = 0;
+  if (newStatus === "DONE" && oldStatus !== "DONE") xpDelta = 10;
+  else if (newStatus !== "DONE" && oldStatus === "DONE") xpDelta = -10;
+
+  emitHabitProgressEvent(userId);
+
+  res.json({ taskId, status: newStatus, xpDelta });
 });
 
 router.get("/habits/:habitId", requireAuth, async (req, res): Promise<void> => {

@@ -88,6 +88,7 @@ export async function generateDailyHabitTasks(userId: number): Promise<HabitGene
           description: habit.description ?? null,
           priority: habit.priority,
           status: "TODO",
+          isHabitTask: true,
           deadline: today,
           classificationId: habit.classificationId ?? null,
           habitId: habit.id,

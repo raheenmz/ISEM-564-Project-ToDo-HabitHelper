@@ -35,17 +35,21 @@ export function HabitProgressRing({
   const displayPct = Math.round(pct * 100);
 
   const ringColor =
-    displayPct === 100
+    displayPct === 0
+      ? "#888888"
+      : displayPct === 100
       ? "#8b5cf6"
+      : displayPct >= 75
+      ? "#22c55e"
       : displayPct >= 50
-      ? "#14b8a6"
-      : displayPct > 0
-      ? "#5eead4"
-      : "#e2e8f0";
+      ? "#f59e0b"
+      : "#3b82f6";
+
+  const glowFilter = displayPct === 100 ? "drop-shadow(0 0 6px #8b5cf6aa)" : undefined;
 
   return (
     <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="-rotate-90">
+      <svg width={size} height={size} className="-rotate-90" style={{ filter: glowFilter }}>
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -74,7 +78,7 @@ export function HabitProgressRing({
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 0.3 }}
           className="text-lg font-bold leading-none"
-          style={{ color: displayPct === 100 ? "#8b5cf6" : "#0f172a" }}
+          style={{ color: ringColor }}
         >
           {displayPct}%
         </motion.span>

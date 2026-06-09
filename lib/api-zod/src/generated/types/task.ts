@@ -29,6 +29,9 @@ export interface Task {
   isOverdue: boolean;
   subtaskCount: number;
   completedSubtaskCount: number;
+  /** @nullable */
+  habitId?: number | null;
+  isHabitTask: boolean;
   emailNotificationSent?: boolean;
   createdAt: string;
   updatedAt: string;

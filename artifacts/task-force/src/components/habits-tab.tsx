@@ -6,7 +6,7 @@ import {
   useGetTasks,
   useCreateHabit,
   useUpdateHabit,
-  useUpdateTask,
+  useUpdateHabitTaskStatus,
   useDeleteHabit,
   useGenerateTodayHabitTasks,
   useAiSuggestHabitTasks,
@@ -17,6 +17,7 @@ import {
   getGetHabitsQueryKey,
   getGetTasksQueryKey,
   getGetDashboardSummaryQueryKey,
+  getGetHabitTodayProgressQueryKey,
 } from "@workspace/api-client-react";
 import type { Habit, Classification } from "@workspace/api-client-react";
 import { HabitHelper } from "@/components/habit-helper";
@@ -649,6 +650,7 @@ export function HabitsTab({ onToast }: HabitsTabProps) {
   const [justCreatedHabit, setJustCreatedHabit] = useState(false);
   const [completingHabitIds, setCompletingHabitIds] = useState<Set<number>>(new Set());
   const [showCelebration, setShowCelebration] = useState(false);
+  const [xpPopup, setXpPopup] = useState<{ habitId: number; amount: number; key: number } | null>(null);
   const justCreatedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const celebrationShownKey = `habitCelebration_${new Date().toISOString().split("T")[0]}`;
 
@@ -729,14 +731,7 @@ export function HabitsTab({ onToast }: HabitsTabProps) {
     return undefined;
   }, [completedHabits, skippedTodayCount, totalHabits, celebrationShownKey]);
 
-  const updateTask = useUpdateTask({
-    mutation: {
-      onSuccess: () => {
-        qc.invalidateQueries({ queryKey: getGetTasksQueryKey() });
-        qc.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
-      },
-    },
-  });
+  const updateHabitTaskStatus = useUpdateHabitTaskStatus();
 
   const deleteHabit = useDeleteHabit({
     mutation: {
@@ -768,21 +763,31 @@ export function HabitsTab({ onToast }: HabitsTabProps) {
 
   const generateToday = useGenerateTodayHabitTasks();
 
-  const handleToggleHabitComplete = useCallback(async (habitId: number) => {
-    const task = allTasks.find((t) => t.habitId === habitId && t.deadline === today);
-    if (!task) return;
-    if (task.status === "DONE") return;
-    setCompletingHabitIds((prev) => new Set(prev).add(habitId));
-    setTimeout(() => {
-      setCompletingHabitIds((prev) => {
-        const next = new Set(prev);
-        next.delete(habitId);
-        return next;
-      });
-    }, 900);
-    await updateTask.mutateAsync({ id: task.id, data: { status: "DONE" } });
-    onToast("+10 XP earned! ⚡ Habit completed.");
-  }, [allTasks, today, updateTask, onToast]);
+  const handleHabitStatusChange = useCallback((habitId: number, taskId: number, newStatus: "TODO" | "IN_PROGRESS" | "DONE") => {
+    if (newStatus === "DONE") {
+      setCompletingHabitIds((prev) => new Set(prev).add(habitId));
+      setTimeout(() => {
+        setCompletingHabitIds((prev) => {
+          const next = new Set(prev);
+          next.delete(habitId);
+          return next;
+        });
+      }, 900);
+    }
+    updateHabitTaskStatus.mutate({ taskId, data: { status: newStatus } }, {
+      onSuccess: (result) => {
+        qc.invalidateQueries({ queryKey: getGetTasksQueryKey() });
+        qc.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+        qc.invalidateQueries({ queryKey: getGetHabitTodayProgressQueryKey() });
+        if (result.xpDelta > 0) {
+          setXpPopup({ habitId, amount: result.xpDelta, key: Date.now() });
+          setTimeout(() => setXpPopup(null), 1500);
+          onToast(`+${result.xpDelta} XP earned! ⚡ Habit completed.`);
+        }
+      },
+      onError: () => onToast("Failed to update habit status"),
+    });
+  }, [updateHabitTaskStatus, qc, onToast]);
 
   async function handleGenerate() {
     setGenerating(true);
@@ -1058,45 +1063,45 @@ export function HabitsTab({ onToast }: HabitsTabProps) {
                   </span>
                 </div>
 
-                {/* Mark Complete button — hidden when skipped */}
+                {/* Status dropdown — hidden when skipped */}
                 {habit.isActive && hasTodayTask && !isSkippedToday && (
-                  <AnimatePresence mode="wait">
-                    {isDone ? (
-                      <motion.div
-                        key="done"
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.9 }}
-                        transition={{ duration: 0.3 }}
-                        className="w-full flex items-center justify-center gap-2 bg-teal-500 text-white text-sm font-semibold py-2.5 rounded-xl cursor-default"
-                      >
-                        <motion.svg
-                          width="16" height="16" viewBox="0 0 16 16"
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          transition={{ type: "spring", stiffness: 400, damping: 20, delay: 0.1 }}
+                  <div className="relative">
+                    <AnimatePresence>
+                      {xpPopup?.habitId === habit.id && (
+                        <motion.div
+                          key={xpPopup.key}
+                          className="absolute -top-8 left-1/2 -translate-x-1/2 z-20 pointer-events-none"
+                          initial={{ y: 0, opacity: 1 }}
+                          animate={{ y: -20, opacity: 0 }}
+                          exit={{}}
+                          transition={{ duration: 0.9, ease: "easeOut" }}
                         >
-                          <polyline points="2,9 6,13 14,4" stroke="white" strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                        </motion.svg>
-                        Completed Today
-                      </motion.div>
-                    ) : (
-                      <motion.button
-                        key="mark"
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.9 }}
-                        transition={{ duration: 0.2 }}
-                        onClick={() => handleToggleHabitComplete(habit.id)}
-                        className="w-full flex items-center justify-center gap-2 bg-slate-50 hover:bg-teal-50 border border-slate-200 hover:border-teal-300 text-slate-600 hover:text-teal-700 text-sm font-semibold py-2.5 rounded-xl transition-colors"
-                        whileHover={{ scale: 1.01 }}
-                        whileTap={{ scale: 0.97 }}
-                      >
-                        <CheckSquare className="w-4 h-4" />
-                        Mark Complete
-                      </motion.button>
-                    )}
-                  </AnimatePresence>
+                          <span className="text-xs font-semibold text-violet-600 bg-violet-50 border border-violet-200 px-2.5 py-1 rounded-full shadow-sm whitespace-nowrap">
+                            ⚡ +{xpPopup.amount} XP
+                          </span>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                    <Select
+                      value={todayTask?.status ?? "TODO"}
+                      onValueChange={(v) => todayTask && handleHabitStatusChange(habit.id, todayTask.id, v as "TODO" | "IN_PROGRESS" | "DONE")}
+                    >
+                      <SelectTrigger className={`w-full text-sm font-semibold ${
+                        isDone
+                          ? "bg-teal-500 text-white border-teal-500"
+                          : todayTask?.status === "IN_PROGRESS"
+                          ? "bg-sky-50 text-sky-700 border-sky-200"
+                          : "bg-slate-50 border-slate-200 text-slate-600"
+                      }`}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="TODO">To Do</SelectItem>
+                        <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                        <SelectItem value="DONE">✓ Done</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 )}
               </motion.div>
             );

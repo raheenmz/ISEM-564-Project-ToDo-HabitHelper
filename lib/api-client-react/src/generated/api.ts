@@ -35,6 +35,9 @@ import type {
   HabitInput,
   HabitRobotChatInput,
   HabitRobotChatResult,
+  HabitTaskStatusResult,
+  HabitTaskStatusUpdate,
+  HabitTodayProgress,
   HabitUpdate,
   HealthStatus,
   LoginInput,
@@ -2474,6 +2477,232 @@ export const useUnskipHabitToday = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getUnskipHabitTodayMutationOptions(options));
+    }
+
+export const getGetHabitTodayProgressUrl = () => {
+
+
+
+
+  return `/api/habits/today-progress`
+}
+
+/**
+ * @summary Get today's habit completion progress and streak
+ */
+export const getHabitTodayProgress = async ( options?: RequestInit): Promise<HabitTodayProgress> => {
+
+  return customFetch<HabitTodayProgress>(getGetHabitTodayProgressUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetHabitTodayProgressQueryKey = () => {
+    return [
+    `/api/habits/today-progress`
+    ] as const;
+    }
+
+
+export const getGetHabitTodayProgressQueryOptions = <TData = Awaited<ReturnType<typeof getHabitTodayProgress>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getHabitTodayProgress>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetHabitTodayProgressQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getHabitTodayProgress>>> = ({ signal }) => getHabitTodayProgress({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getHabitTodayProgress>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetHabitTodayProgressQueryResult = NonNullable<Awaited<ReturnType<typeof getHabitTodayProgress>>>
+export type GetHabitTodayProgressQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get today's habit completion progress and streak
+ */
+
+export function useGetHabitTodayProgress<TData = Awaited<ReturnType<typeof getHabitTodayProgress>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getHabitTodayProgress>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetHabitTodayProgressQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getHabitProgressEventsUrl = () => {
+
+
+
+
+  return `/api/habits/progress-events`
+}
+
+/**
+ * @summary SSE stream for real-time habit progress updates
+ */
+export const habitProgressEvents = async ( options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getHabitProgressEventsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getHabitProgressEventsQueryKey = () => {
+    return [
+    `/api/habits/progress-events`
+    ] as const;
+    }
+
+
+export const getHabitProgressEventsQueryOptions = <TData = Awaited<ReturnType<typeof habitProgressEvents>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof habitProgressEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getHabitProgressEventsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof habitProgressEvents>>> = ({ signal }) => habitProgressEvents({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof habitProgressEvents>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type HabitProgressEventsQueryResult = NonNullable<Awaited<ReturnType<typeof habitProgressEvents>>>
+export type HabitProgressEventsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary SSE stream for real-time habit progress updates
+ */
+
+export function useHabitProgressEvents<TData = Awaited<ReturnType<typeof habitProgressEvents>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof habitProgressEvents>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getHabitProgressEventsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpdateHabitTaskStatusUrl = (taskId: number,) => {
+
+
+
+
+  return `/api/habits/tasks/${taskId}/status`
+}
+
+/**
+ * @summary Update the status of a habit task
+ */
+export const updateHabitTaskStatus = async (taskId: number,
+    habitTaskStatusUpdate: HabitTaskStatusUpdate, options?: RequestInit): Promise<HabitTaskStatusResult> => {
+
+  return customFetch<HabitTaskStatusResult>(getUpdateHabitTaskStatusUrl(taskId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      habitTaskStatusUpdate,)
+  }
+);}
+
+
+
+
+export const getUpdateHabitTaskStatusMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateHabitTaskStatus>>, TError,{taskId: number;data: BodyType<HabitTaskStatusUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateHabitTaskStatus>>, TError,{taskId: number;data: BodyType<HabitTaskStatusUpdate>}, TContext> => {
+
+const mutationKey = ['updateHabitTaskStatus'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateHabitTaskStatus>>, {taskId: number;data: BodyType<HabitTaskStatusUpdate>}> = (props) => {
+          const {taskId,data} = props ?? {};
+
+          return  updateHabitTaskStatus(taskId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateHabitTaskStatusMutationResult = NonNullable<Awaited<ReturnType<typeof updateHabitTaskStatus>>>
+    export type UpdateHabitTaskStatusMutationBody = BodyType<HabitTaskStatusUpdate>
+    export type UpdateHabitTaskStatusMutationError = ErrorType<void>
+
+    /**
+ * @summary Update the status of a habit task
+ */
+export const useUpdateHabitTaskStatus = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateHabitTaskStatus>>, TError,{taskId: number;data: BodyType<HabitTaskStatusUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateHabitTaskStatus>>,
+        TError,
+        {taskId: number;data: BodyType<HabitTaskStatusUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateHabitTaskStatusMutationOptions(options));
     }
 
 export const getGenerateTodayHabitTasksUrl = () => {

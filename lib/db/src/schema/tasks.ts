@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, timestamp, date } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, date, boolean } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
 import { classificationsTable } from "./classifications";
 
@@ -12,6 +12,7 @@ export const tasksTable = pgTable("tasks", {
   ),
   groupId: integer("group_id"),
   habitId: integer("habit_id"),
+  isHabitTask: boolean("is_habit_task").notNull().default(false),
   title: text("title").notNull(),
   description: text("description"),
   priority: text("priority").notNull().default("MEDIUM"),

@@ -1,0 +1,159 @@
+ENHANCED HABIT BUILDER + HELPER — REPLIT PROMPT (UPDATED STATUS VALUES)
+============================================================
+
+STATUS VALUE REFERENCE:
+  not_started → to_do       (display: "To Do")
+  in_progress → in_progress (display: "In Progress")
+  completed   → done        (display: "Done")
+
+--- BUG FIX 1 — Progress ring ---
+The progress ring on the Dashboard Habit Widget is not reacting to habit status changes. Fix this as follows:
+
+The progress ring must be driven ONLY by the `status` field on habit tasks — not by any skip, delete, or other action.
+
+Backend:
+- Add a new route: GET /api/habits/today-progress
+  - Query all habit tasks for the logged-in user where due_date = today
+  - Return:
+    {
+      total: number,        // count of active habit tasks for today
+      done: number,         // count where status = 'done'
+      inProgress: number,   // count where status = 'in_progress'
+      percentage: number,   // Math.round((done / total) * 100), 0 if total = 0
+      streak: number        // consecutive days where all habits were done
+    }
+- Add a route: PATCH /api/habits/tasks/:taskId/status
+  - Accepts: { status: 'to_do' | 'in_progress' | 'done' }
+  - Updates only the status field on that task row
+  - After update, broadcasts a WebSocket event: { type: 'HABIT_PROGRESS_UPDATED', userId }
+  - Returns the updated task
+
+Frontend:
+- The Dashboard Habit Progress widget must call GET /api/habits/today-progress on mount
+- Subscribe to the WebSocket event `HABIT_PROGRESS_UPDATED` — on receive, re-fetch today-progress and update the ring
+- The animated progress ring value must equal `percentage` from the API response
+- Do NOT calculate progress from any other source (not from XP, not from skip events)
+
+--- BUG FIX 2 — XP gamification ---
+The XP system is currently awarding or animating XP when a habit is skipped. Fix this completely:
+
+- XP must only be awarded when a habit task status is changed TO 'done'
+- XP must never be awarded, animated, or modified when status is changed to 'skipped', 'to_do', or 'in_progress'
+- If a task is un-done (status changed FROM 'done' to anything else), deduct the XP that was previously awarded for that task
+- Implement a guard in the PATCH /api/habits/tasks/:taskId/status handler:
+    if (newStatus === 'done' && previousStatus !== 'done') { award XP }
+    if (newStatus !== 'done' && previousStatus === 'done') { deduct XP }
+- The XP animation on the frontend must only fire when the API response confirms the status changed to 'done'
+- Audit all existing XP trigger points and remove any that fire on skip, delete, or generate actions
+
+--- NEW — Habit status field (updated) ---
+Add a `status` field to daily generated habit tasks. Do not modify any non-habit tasks.
+
+Status values for habit tasks are:
+    'to_do' | 'in_progress' | 'done'
+
+Display labels (UI-facing):
+    to_do       → "To Do"
+    in_progress → "In Progress"
+    done        → "Done"
+
+Database:
+- The existing `tasks` table already has a status column — ensure habit-generated tasks only use the three values above
+- When the "Generate Today's Habit Tasks" button creates tasks, always set status = 'to_do'
+- Add a `is_habit_task` boolean column to the tasks table (default false) to distinguish habit tasks from regular tasks
+- Set is_habit_task = true for all tasks created by the habit generator
+
+Status update UI:
+- Everywhere habit tasks appear (Dashboard, List View, Kanban View, Habit View), users must be able to change the status
+- Use a dropdown or segmented control with three options: To Do | In Progress | Done
+- On change, call PATCH /api/habits/tasks/:taskId/status immediately (optimistic update — update UI first, revert on error)
+- After a successful status update, trigger a refresh of the Habit Progress widget
+
+--- NEW — Dashboard widget ---
+Add a Habit Progress widget to the Dashboard. It must show:
+
+- Animated SVG progress ring (stroke-dashoffset driven by percentage)
+- Large percentage number in the center of the ring
+- "X of Y Habits Done" below the ring
+- Current streak display: "🔥 N-Day Streak"
+- The Habit Helper robot animation (see animation section below)
+
+The ring animation must:
+- Use a CSS transition or Framer Motion spring on the stroke-dashoffset value
+- Animate smoothly every time the percentage changes — not just on page load
+- The ring color should change by completion tier:
+    0%      → gray (#888)
+    1–49%   → blue
+    50–74%  → amber
+    75–99%  → green
+    100%    → purple with a glow pulse
+
+Real-time updates:
+- Listen for the WebSocket event HABIT_PROGRESS_UPDATED
+- On receive, call GET /api/habits/today-progress, then animate the ring to the new value
+- No page reload required
+
+--- NEW — Habit Helper animations ---
+The Habit Helper robot character must visually react to the current completion percentage using Framer Motion. Use the following tiers exactly — do not interpolate between them:
+
+0% (all to_do):
+- Animation: idle floating loop (y: 0 → -8 → 0, repeat infinite, duration 3s ease-in-out)
+- Message: "Let's get started today."
+- Ring color: gray
+
+1–24% (beginning tier):
+- Animation: slow gentle bounce (y: 0 → -5 → 0, repeat infinite, duration 2s)
+- Message: "Great start! Keep going."
+- Ring color: blue
+
+25–49% (quarter tier):
+- Animation: gentle bounce (y: 0 → -10 → 0, repeat 3, duration 0.6s, then return to float)
+- Message: "Great start! Keep going."
+- Ring color: blue
+
+50–74% (halfway tier):
+- Animation: glow effect (box-shadow pulse on the robot container, 0.8s loop)
+- Message: "You're halfway there."
+- Ring color: amber
+
+75–99% (almost tier):
+- Animation: excited side-to-side shake (x: 0 → -6 → 6 → 0, repeat 3, duration 0.3s) + sparkle particles (4 small star SVGs that fly outward and fade)
+- Message: "Almost done! Finish strong."
+- Ring color: green
+
+100% (all done):
+- Animation: victory jump (y: 0 → -30 → 0, spring, stiffness 200) + confetti burst (20 colored dots scatter from robot center using random x/y offsets and fade out over 1.5s)
+- Message: "Fantastic! All habits done today!"
+- Ring color: purple with glow pulse
+
+Implementation notes:
+- Use `framer-motion` (already in the project or install it)
+- Each tier transition should animate smoothly — use AnimatePresence for message text changes
+- Sparkles and confetti must be canvas or SVG-based, not a third-party library
+- The robot component should accept a `percentage` prop and derive its animation tier internally
+- Only re-trigger tier-entry animations when the tier CHANGES, not on every percentage update within the same tier
+
+--- NEW — Streak calculation ---
+Calculate the user's habit streak server-side in GET /api/habits/today-progress:
+
+- A "streak day" is a calendar day where ALL active habit tasks had status = 'done' by end of that day
+- Walk backwards from yesterday, counting consecutive streak days
+- If today is already 100% done, include today in the streak count
+- If the user has no completed days yet, streak = 0
+- Store nothing — calculate from existing task history on each request
+- Return the streak as an integer in the today-progress response
+
+--- Success criteria ---
+Before marking this task complete, verify each of the following manually:
+
+[ ] Marking a habit task as "Done" updates the progress ring immediately via WebSocket — no page reload
+[ ] Skipping or deleting a habit task does NOT award XP or trigger any XP animation
+[ ] Marking a habit task as "Done" DOES award XP and trigger the XP animation
+[ ] Un-doing a habit task (done → to_do or in_progress) deducts XP
+[ ] The progress ring color changes at 0%, 50%, 75%, and 100% thresholds
+[ ] The Habit Helper robot animation changes when crossing a tier boundary (0→1%, 25%, 50%, 75%, 100%)
+[ ] The robot message updates with AnimatePresence transition on tier change
+[ ] At 100%, confetti fires once per tier-entry, not repeatedly
+[ ] Streak count increments correctly after a full "Done" day
+[ ] Status dropdown shows "To Do", "In Progress", "Done" on Dashboard, List View, Kanban View, and Habit View for habit tasks only
+

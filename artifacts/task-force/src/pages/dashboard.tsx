@@ -13,13 +13,17 @@ import {
   useCreateGroupNote,
   useDeleteGroupNote,
   useAutoGenerateHabitTasks,
+  useGetHabitTodayProgress,
+  useUpdateHabitTaskStatus,
   getGetTasksQueryKey,
   getGetDashboardSummaryQueryKey,
   getGetGroupsQueryKey,
+  getGetHabitTodayProgressQueryKey,
 } from "@workspace/api-client-react";
 import type { Task, Group, GroupMember } from "@workspace/api-client-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useGroupEvents } from "@/hooks/use-group-events";
+import { useHabitProgressEvents } from "@/hooks/use-habit-progress-events";
 import { TaskFormDialog } from "@/components/task-form-dialog";
 import { CreateGroupDialog } from "@/components/create-group-dialog";
 import { CalendarView } from "@/components/calendar-view";
@@ -614,6 +618,9 @@ export default function Dashboard() {
   }, [user?.id]);
 
   useGroupEvents(!!user);
+  useHabitProgressEvents(!!user);
+
+  const { data: todayProgress } = useGetHabitTodayProgress();
 
   const deleteTask = useDeleteTask({
     mutation: {
@@ -633,6 +640,8 @@ export default function Dashboard() {
       },
     },
   });
+
+  const updateHabitTaskStatus = useUpdateHabitTaskStatus();
 
   const deleteGroup = useDeleteGroup({
     mutation: {
@@ -658,25 +667,9 @@ export default function Dashboard() {
   const allTasks = tasks as Task[];
   const allGroups = groups as Group[];
 
-  const habitTasksToday     = useMemo(() => allTasks.filter((t) => (t as Task & { habitId?: number | null }).habitId != null && t.deadline === today), [allTasks, today]);
-  const completedHabitsToday = useMemo(() => habitTasksToday.filter((t) => t.status === "DONE").length, [habitTasksToday]);
-  const totalHabitsToday     = habitTasksToday.length;
-  const habitStreak          = useMemo(() => {
-    const doneDates = new Set(
-      allTasks
-        .filter((t) => (t as Task & { habitId?: number | null }).habitId != null && t.status === "DONE" && t.deadline)
-        .map((t) => t.deadline!),
-    );
-    let streak = 0;
-    const base = new Date();
-    for (let i = 0; i <= 365; i++) {
-      const d = new Date(base);
-      d.setDate(d.getDate() - i);
-      if (doneDates.has(d.toISOString().split("T")[0])) streak++;
-      else break;
-    }
-    return streak;
-  }, [allTasks]);
+  const completedHabitsToday = todayProgress?.done ?? 0;
+  const totalHabitsToday     = todayProgress?.total ?? 0;
+  const habitStreak          = todayProgress?.streak ?? 0;
 
   const todayTasks      = useMemo(() => sortTasks(allTasks.filter((t) => t.deadline === today && t.status !== "DONE")), [allTasks, today]);
   const todoTasks       = useMemo(() => sortTasks(allTasks.filter((t) => t.status === "TODO")), [allTasks]);
@@ -715,7 +708,21 @@ export default function Dashboard() {
   function openCreate() { setEditingTask(null); setTaskFormOpen(true); }
   function openEdit(t: Task) { setEditingTask(t); setTaskFormOpen(true); }
   function handleStatusChange(t: Task, newStatus: string) {
-    updateTask.mutate({ id: t.id, data: { status: newStatus as "TODO" | "IN_PROGRESS" | "DONE" } });
+    if (t.isHabitTask) {
+      updateHabitTaskStatus.mutate(
+        { taskId: t.id, data: { status: newStatus as "TODO" | "IN_PROGRESS" | "DONE" } },
+        {
+          onSuccess: (result) => {
+            qc.invalidateQueries({ queryKey: getGetTasksQueryKey() });
+            qc.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+            qc.invalidateQueries({ queryKey: getGetHabitTodayProgressQueryKey() });
+            if (result.xpDelta > 0) showToast(`+${result.xpDelta} XP earned! ⚡ Habit completed.`);
+          },
+        },
+      );
+    } else {
+      updateTask.mutate({ id: t.id, data: { status: newStatus as "TODO" | "IN_PROGRESS" | "DONE" } });
+    }
   }
 
   function handleDeleteGroup(id: number) {
@@ -863,6 +870,16 @@ export default function Dashboard() {
                 bg="bg-amber-100" textColor="text-amber-900"
                 icon={<AlertTriangle className="w-5 h-5 text-amber-800" />} />
             </div>
+
+            {/* Habit Progress Widget */}
+            {totalHabitsToday > 0 && (
+              <HabitDashboardWidget
+                completedHabits={completedHabitsToday}
+                totalHabits={totalHabitsToday}
+                currentStreak={habitStreak}
+                onClick={() => setActiveSection("habits")}
+              />
+            )}
 
             {/* Today's Focus */}
             {!tasksLoading && (
