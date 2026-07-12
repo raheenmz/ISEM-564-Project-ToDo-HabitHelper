@@ -4,6 +4,7 @@ import session from "express-session";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import path from "node:path";
 
 declare module "express-session" {
   interface SessionData {
@@ -75,5 +76,18 @@ app.use(
 );
 
 app.use("/api", router);
+
+if (isProd) {
+  const publicPath = path.resolve(
+    process.cwd(),
+    "artifacts/task-force/dist/public",
+  );
+
+  app.use(express.static(publicPath));
+
+  app.get("/{*splat}", (_req, res) => {
+    res.sendFile(path.join(publicPath, "index.html"));
+  });
+}
 
 export default app;
