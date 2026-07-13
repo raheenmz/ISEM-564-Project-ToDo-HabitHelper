@@ -14,9 +14,18 @@ declare module "express-session" {
 
 const isProd = process.env.NODE_ENV === "production";
 
-const ALLOWED_ORIGINS = process.env.REPLIT_DEV_DOMAIN
-  ? [`https://${process.env.REPLIT_DEV_DOMAIN}`]
-  : ["http://localhost:3000", "http://localhost:5173", "http://localhost:80", "http://localhost"];
+const ALLOWED_ORIGINS = [
+  "http://localhost:3000",
+  "http://localhost:5173",
+  "http://localhost:80",
+  "http://localhost",
+  ...(process.env.REPLIT_DEV_DOMAIN
+    ? [`https://${process.env.REPLIT_DEV_DOMAIN}`]
+    : []),
+  ...(process.env.APP_ORIGIN
+    ? [process.env.APP_ORIGIN]
+    : []),
+];
 
 const app: Express = express();
 
