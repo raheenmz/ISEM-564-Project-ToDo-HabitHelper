@@ -45,7 +45,7 @@ Example: [{"title":"...","description":"...","deadline":"2025-01-15","priority":
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "gemini-2.5-flash",
+        model: "gemini-3.5-flash",
         messages: [{ role: "user", content: prompt }],
         max_completion_tokens: 8192,
       }),
@@ -146,7 +146,7 @@ export async function chatWithHabitRobot(
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "gemini-2.0-flash",
+        model: "gemini-3.5-flash",
         messages: [
           { role: "system", content: HABIT_ROBOT_SYSTEM_PROMPT },
           { role: "user", content: userContent },
